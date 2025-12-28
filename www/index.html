@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Twahh Model RM | Ultimate</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="scan-line"></div>
+    <div class="vignette"></div>
+
+    <!-- Diagnostic Screen Overlay -->
+    <div id="diagnostic-screen" class="overlay">
+        <div class="overlay-content">
+            <h2 class="neon-text" style="font-family: var(--font-head); letter-spacing: 3px;">SYSTEM DIAGNOSTICS</h2>
+            <div id="diagnostic-log" class="diag-log">
+                <div class="diag-item" id="diag-capacitor"><span>CAPACITOR CORE</span> <span
+                        class="status">CHECKING...</span></div>
+                <div class="diag-item" id="diag-plugin"><span>TWAHH NATIVE BRIDGE</span> <span
+                        class="status">CHECKING...</span></div>
+                <div class="diag-item" id="diag-apps"><span>NATIVE API ACCESS</span> <span
+                        class="status">CHECKING...</span></div>
+                <div class="diag-item" id="diag-events"><span>EVENT BUS</span> <span class="status">CHECKING...</span>
+                </div>
+            </div>
+            <div class="diag-footer">
+                <button id="btnProceed" class="cyber-btn hidden" style="width: 100%;">PROCEED TO DASHBOARD</button>
+                <div id="diag-error" class="error-msg hidden">SYSTEM CRITICAL: NATIVE BRIDGE FAILURE</div>
+            </div>
+        </div>
+    </div>
+    <!-- Header -->
+    <header class="cyber-header">
+        <div class="brand">
+            <div class="logo-text">MODEL <span class="neon-text">RM</span></div>
+            <div class="sub-text">ALLWINNER T5 // CANBUS LINKED</div>
+        </div>
+
+        <!-- Infotainment Widget (Center) -->
+        <div class="info-widget">
+            <div class="media-info">
+                <span class="icon">♫</span>
+                <span id="mediaTrack">TRACK</span> <span style="color:#666">//</span> <span
+                    id="mediaArtist">ARTIST</span>
+            </div>
+            <div class="nav-info">
+                <span class="icon" id="navIcon">↰</span>
+                <span id="navDist">200m</span>
+            </div>
+            <div class="env-info">
+                <span id="outTemp">18°C</span> | <span id="humidity">45%</span>
+            </div>
+        </div>
+
+        <!-- Tab Nav -->
+        <nav class="cyber-nav">
+            <button class="nav-btn active" data-tab="dashboard">DASH</button>
+            <button class="nav-btn" data-tab="vehicle">CAR</button>
+            <button class="nav-btn" data-tab="telemetry">TEL</button>
+            <button class="nav-btn" data-tab="apps">APPS</button>
+        </nav>
+    </header>
+
+    <!-- DASHBOARD TAB (Powertrain) -->
+    <main id="tab-dashboard" class="cyber-grid active-tab">
+        <section class="cluster-main">
+            <div class="gauge-complex">
+                <svg class="rpm-svg" viewBox="0 0 200 100">
+                    <path class="rpm-bg" d="M 10,100 A 90,90 0 0 1 190,100" />
+                    <path id="rpmPath" class="rpm-fill" d="M 10,100 A 90,90 0 0 1 10,100" />
+                </svg>
+                <div class="center-data">
+                    <div class="big-value" id="val_speed">0</div>
+                    <div class="unit">KM/H</div>
+                </div>
+            </div>
+            <div class="rpm-display"><span id="val_rpm">0</span> RPM</div>
+            <div class="gear-indicator" id="val_gear">N</div>
+        </section>
+
+        <section class="cluster-side">
+            <div class="cyber-card" data-label="COOLANT">
+                <div class="cyber-val" id="val_coolant">--</div>
+                <div class="cyber-unit">°C</div>
+            </div>
+            <div class="cyber-card" data-label="OIL">
+                <div class="cyber-val" id="val_oil">--</div>
+                <div class="cyber-unit">°C</div>
+            </div>
+            <div class="cyber-card" data-label="BOOST">
+                <div class="cyber-val" id="val_boost">--</div>
+                <div class="cyber-unit">PSI</div>
+            </div>
+        </section>
+
+        <section class="cluster-side">
+            <div class="cyber-card" data-label="AFR">
+                <div class="cyber-val" id="val_afr">--</div>
+                <div class="cyber-unit">:1</div>
+            </div>
+            <div class="cyber-card" data-label="POWER">
+                <div class="cyber-val" id="val_kw">--</div>
+                <div class="cyber-unit">KW</div>
+            </div>
+            <div class="cyber-card" data-label="TRAP">
+                <div class="cyber-val" id="val_trap">--</div>
+                <div class="cyber-unit">KM/H</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- VEHICLE TAB (Body Control) -->
+    <main id="tab-vehicle" class="cyber-grid hidden-tab">
+        <section class="cluster-side">
+            <div class="widget-box">
+                <div class="widget-title">G-FORCE</div>
+                <canvas id="gMeter" width="150" height="150"></canvas>
+                <div class="g-val"><span id="gValX">0.0</span> G</div>
+            </div>
+            <div class="widget-box" style="margin-top:10px">
+                <div class="widget-title">SEATS</div>
+                <div class="seat-row">L: <span id="seatL">OFF</span> R: <span id="seatR">OFF</span></div>
+            </div>
+        </section>
+
+        <section class="cluster-main" style="border:none; background:none;">
+            <div class="car-visualizer">
+                <div class="car-body">
+                    <div class="car-roof"></div>
+                    <div class="door door-fl" id="door-fl"></div>
+                    <div class="door door-fr" id="door-fr"></div>
+                    <div class="door door-rl" id="door-rl"></div>
+                    <div class="door door-rr" id="door-rr"></div>
+                    <div class="hood" id="door-hood"></div>
+                    <div class="trunk" id="door-trunk"></div>
+                    <div class="headlights" id="lights-head"></div>
+                </div>
+            </div>
+            <div class="car-status-text" id="carAlert">ALL SYSTEMS NOMINAL</div>
+            <div class="demo-controls">
+                <button onclick="app.hal.toggleDoor('fl')">FL DOOR</button>
+                <button onclick="app.hal.toggleLight('lowBeam')">LIGHTS</button>
+            </div>
+        </section>
+
+        <section class="cluster-side">
+            <div class="widget-box">
+                <div class="widget-title">TPMS</div>
+                <div class="tpms-grid">
+                    <div class="tpms-val" id="tpms-fl">35</div>
+                    <div class="tpms-val" id="tpms-fr">35</div>
+                    <div class="tpms-val" id="tpms-rl">34</div>
+                    <div class="tpms-val" id="tpms-rr">34</div>
+                </div>
+            </div>
+            <div class="widget-box" style="margin-top:10px">
+                <div class="widget-title">CLIMATE</div>
+                <div class="climate-row">
+                    <div class="temp">22°C</div>
+                    <div class="fan">FAN: ||||</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- TELEMETRY TAB (New) -->
+    <main id="tab-telemetry" class="cyber-grid hidden-tab">
+        <!-- Suspension Viz -->
+        <section class="cluster-main">
+            <div class="widget-title">SUSPENSION TRAVEL</div>
+            <div class="suspension-viz">
+                <div class="susp-bar">
+                    <div class="susp-fill" id="susp-fl"></div><label>FL</label>
+                </div>
+                <div class="susp-bar">
+                    <div class="susp-fill" id="susp-fr"></div><label>FR</label>
+                </div>
+                <div class="susp-bar">
+                    <div class="susp-fill" id="susp-rl"></div><label>RL</label>
+                </div>
+                <div class="susp-bar">
+                    <div class="susp-fill" id="susp-rr"></div><label>RR</label>
+                </div>
+            </div>
+            <!-- Steering -->
+            <div class="steering-widget">
+                <div class="wheel" id="steeringWheel"></div>
+                <div class="steer-val"><span id="steerVal">0</span>°</div>
+            </div>
+        </section>
+
+        <!-- Performance Stats -->
+        <section class="cluster-side">
+            <div class="cyber-card" data-label="BRAKE">
+                <div class="cyber-val" id="val_brake">0</div>
+                <div class="cyber-unit">BAR</div>
+            </div>
+            <div class="cyber-card" data-label="DRIFT">
+                <div class="cyber-val" id="val_drift">0</div>
+                <div class="cyber-unit">DEG</div>
+            </div>
+            <div class="cyber-card" data-label="LAT G">
+                <div class="cyber-val" id="val_latg">0</div>
+                <div class="cyber-unit">MAX</div>
+            </div>
+        </section>
+
+        <section class="cluster-side">
+            <div class="cyber-card" data-label="0-100">
+                <div class="cyber-val" id="val_z100">--</div>
+                <div class="cyber-unit">SEC</div>
+            </div>
+            <div class="cyber-card" data-label="1/4 MILE">
+                <div class="cyber-val" id="val_qtr">--</div>
+                <div class="cyber-unit">SEC</div>
+            </div>
+            <div class="cyber-card" data-label="ACCEL G">
+                <div class="cyber-val" id="val_longg">0</div>
+                <div class="cyber-unit">MAX</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- APPS TAB (Launcher) -->
+    <main id="tab-apps" class="cyber-grid hidden-tab">
+        <section class="cluster-main app-drawer">
+            <div class="app-grid" id="appGrid">
+                <!-- Dynamic Apps Here -->
+            </div>
+        </section>
+
+        <section class="cluster-side">
+            <div class="widget-box">
+                <div class="widget-title">SYSTEM LOAD</div>
+                <div class="load-visual">
+                    <div class="load-bar cpu-bar"><span>CPU</span>
+                        <div class="bar">
+                            <div class="fill" style="width:40%"></div>
+                        </div>
+                    </div>
+                    <div class="load-bar mem-bar"><span>MEM</span>
+                        <div class="bar">
+                            <div class="fill" style="width:65%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="widget-box" style="margin-top:10px">
+                <div class="widget-title">NETWORK</div>
+                <div class="net-status">WIFI: CONNECTED</div>
+                <div class="net-status">4G/LTE: ACTIVE</div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="cyber-footer">
+        <button id="btnConnect" class="cyber-btn active">CONNECT HAL</button>
+    </footer>
+    </div>
+
+    <script src="hal.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
