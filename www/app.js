@@ -113,6 +113,7 @@ class App {
     updateDiagnosticUI(results) {
         const setStatus = (id, success) => {
             const el = document.getElementById(id);
+            if (!el) return;
             el.classList.add(success ? 'success' : 'error');
             el.querySelector('.status').textContent = success ? 'SUCCESS' : 'FAILED';
         };
@@ -126,15 +127,19 @@ class App {
         const btnProceed = document.getElementById('btnProceed');
         const errDesc = document.getElementById('diag-error');
 
-        if (allOk || (!results.capacitor)) { // Allow proceed in browser/sim if no capacitor
+        if (allOk) {
             btnProceed.classList.remove('hidden');
-            if (!results.capacitor) {
-                btnProceed.textContent = "PROCEED (SIMULATION MODE)";
-            }
+            btnProceed.textContent = "PROCEED TO DASHBOARD";
+        } else if (!results.capacitor) {
+            // No Capacitor found - likely Browser/Sim mode
+            btnProceed.classList.remove('hidden');
+            btnProceed.textContent = "PROCEED (SIMULATION MODE)";
         } else {
+            // Capacitor exists but some checks failed - Critical Native Error
             errDesc.classList.remove('hidden');
-            // Even if failed, for development, we might want a "Force Proceed" hidden button
-            // but for now, we follow instructions.
+            btnProceed.classList.remove('hidden');
+            btnProceed.classList.add('warning');
+            btnProceed.textContent = "FORCE PROCEED (UNSTABLE)";
         }
 
         btnProceed.onclick = () => {

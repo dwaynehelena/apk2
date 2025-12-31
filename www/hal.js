@@ -1,5 +1,4 @@
-import { Plugins } from '@capacitor/core';
-const { TwahhPlugin } = Plugins; // Using the injected plugin
+const TwahhPlugin = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins.TwahhPlugin : null;
 
 class VehicleHAL {
     constructor() {
@@ -36,6 +35,9 @@ class VehicleHAL {
 
     async runDiagnostics() {
         this.log("Starting System Diagnostics...", "system");
+        this.log(`User Agent: ${navigator.userAgent}`, "system");
+        this.log(`URL: ${window.location.href}`, "system");
+
         const results = {
             capacitor: false,
             plugin: false,
@@ -46,7 +48,8 @@ class VehicleHAL {
         // 1. Check Capacitor
         this.log("Probing for window.Capacitor...", "system");
         if (window.Capacitor) {
-            this.log("Capacitor Core found.", "success");
+            this.log(`Capacitor Core found. Version: ${window.Capacitor.version || 'Unknown'}`, "success");
+            this.log(`Platform: ${window.Capacitor.getPlatform()}`, "system");
             results.capacitor = true;
         } else {
             this.log("Capacitor Core NOT FOUND. Running in Web/Sim mode.", "error");
@@ -54,11 +57,14 @@ class VehicleHAL {
 
         // 2. Check Plugin
         this.log("Probing for TwahhPlugin...", "system");
-        if (window.Capacitor && window.Capacitor.Plugins.TwahhPlugin) {
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TwahhPlugin) {
             this.log("TwahhPlugin registered successfully.", "success");
             results.plugin = true;
-        } else {
+        } else if (window.Capacitor && window.Capacitor.Plugins) {
+            this.log(`Known Plugins: ${Object.keys(window.Capacitor.Plugins).join(', ')}`, "system");
             this.log("TwahhPlugin NOT FOUND in Capacitor.Plugins.", "error");
+        } else {
+            this.log("Capacitor.Plugins is undefined.", "error");
         }
 
         // 3. Check Apps (Native API)
@@ -78,7 +84,7 @@ class VehicleHAL {
             }
         }
 
-        // 4. Check Events (Add listener and assume ok if no crash)
+        // 4. Check Events
         if (results.plugin) {
             this.log("Testing Event Bus: systemEvent listener...", "system");
             try {
