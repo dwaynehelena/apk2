@@ -13,6 +13,17 @@ const hal = new VehicleHAL();
 const themeManager = new ThemeManager();
 const voice = new VoiceAssistant();
 
+// Listen for Hardware Keys (SWC mapped to Android KeyCodes)
+window.addEventListener('keydown', (e) => {
+    // Determine code (mock mapping for dev)
+    let code = 0;
+    if (e.key === 'ArrowUp') code = 24; // Vol Up
+    if (e.key === 'ArrowDown') code = 25; // Vol Down
+    if (e.key === 'Enter') code = 85; // Play/Pause
+
+    if (code > 0) hal.handleSWC(code);
+});
+
 // Mount Dashboard Layout
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
@@ -72,9 +83,10 @@ app.innerHTML = `
 
         <!-- Right Panel: Telemetry/Nav -->
         <div class="col-span-3 flex flex-col gap-4">
-             <div class="glass-panel p-4 rounded-xl h-48">
-                <h2 class="text-neon-yellow text-sm uppercase tracking-wider mb-2">G-Force</h2>
-                <canvas id="g-meter" class="w-full h-full"></canvas>
+             <div class="glass-panel p-4 rounded-xl h-48 relative overflow-hidden" id="map-container">
+                <!-- Map Injected Here -->
+                <div class="absolute inset-0 z-0" id="map-view"></div>
+                <div class="absolute top-2 left-2 z-10 text-xs text-neon-cyan bg-black/50 px-2 rounded">GPS: ONLINE</div>
             </div>
              <div class="glass-panel p-4 rounded-xl flex-1">
                 <h2 class="text-white/50 text-sm uppercase tracking-wider mb-2">Log</h2>
@@ -92,9 +104,18 @@ app.innerHTML = `
 const sceneContainer = document.getElementById('scene-3d')!;
 new Vehicle3D(sceneContainer, hal);
 
-// Initialize Telemetry Graph
-const canvas = document.getElementById('g-meter') as HTMLCanvasElement;
-new TelemetryGraph(canvas, hal);
+// Initialize Map
+const mapContainer = document.getElementById('map-view')!;
+import { GPSMap } from './components/GPSMap';
+new GPSMap(mapContainer, hal);
+
+// Initialize Camera System
+import { CameraSystem } from './services/CameraSystem';
+new CameraSystem(hal);
+
+// Initialize Telemetry Graph (Hidden for now or moved if needed, simplified for map focus)
+// const canvas = document.getElementById('g-meter') as HTMLCanvasElement;
+// new TelemetryGraph(canvas, hal);
 
 // Reactive Bindings (The Magic)
 const bindText = (id: string, sig: any) => {

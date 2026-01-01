@@ -29,11 +29,30 @@ export class VehicleHAL {
         }
     };
 
+    // Motion Signals (GPS/Accel)
+    motion = {
+        location: {
+            lat: signal(0),
+            lng: signal(0),
+            heading: signal(0),
+            elevation: signal(0)
+        }
+    };
+
+    // Media/SWC Signals
+    media = {
+        volume: signal(15), // 0-30
+        nowPlaying: signal('FM 88.5'),
+        isPlaying: signal(false)
+    };
+
     readState() {
         // Return structure compatible with tests/legacy views
         return {
             powertrain: this.powertrain,
-            body: this.body
+            body: this.body,
+            motion: this.motion,
+            media: this.media
         }
     }
 
@@ -43,6 +62,27 @@ export class VehicleHAL {
 
     toggleDoor(door: keyof typeof this.body.doors) {
         this.body.doors[door].value = !this.body.doors[door].value;
+    }
+
+    updateLocation(lat: number, lng: number, heading: number) {
+        this.motion.location.lat.value = lat;
+        this.motion.location.lng.value = lng;
+        this.motion.location.heading.value = heading;
+    }
+
+    handleSWC(keyCode: number) {
+        // Mock SWC logic
+        switch (keyCode) {
+            case 24: // KEYCODE_VOLUME_UP
+                this.media.volume.value = Math.min(30, this.media.volume.value + 1);
+                break;
+            case 25: // KEYCODE_VOLUME_DOWN
+                this.media.volume.value = Math.max(0, this.media.volume.value - 1);
+                break;
+            case 85: // KEYCODE_MEDIA_PLAY_PAUSE
+                this.media.isPlaying.value = !this.media.isPlaying.value;
+                break;
+        }
     }
 
     setClimateTemp(side: 'left' | 'right', temp: number) {
