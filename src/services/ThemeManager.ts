@@ -6,9 +6,13 @@ export class ThemeManager {
     currentTheme = signal<Theme>('cyberpunk');
 
     constructor() {
-        // Apply theme when signal changes
+        const saved = localStorage.getItem('theme') as Theme;
+        if (saved) this.currentTheme.value = saved;
+
         effect(() => {
-            this.applyTheme(this.currentTheme.value);
+            const theme = this.currentTheme.value;
+            localStorage.setItem('theme', theme);
+            this.applyTheme(theme);
         });
     }
 

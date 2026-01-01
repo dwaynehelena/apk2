@@ -29,11 +29,12 @@ export class AppService {
         } else {
             // Mock Data for Browser Dev
             this.apps.value = [
-                { name: 'Spotify', package: 'com.spotify.music' },
-                { name: 'Maps', package: 'com.google.android.apps.maps' },
-                { name: 'Netflix', package: 'com.netflix.mediaclient' },
-                { name: 'Chrome', package: 'com.android.chrome' },
-                { name: 'YouTube', package: 'com.google.android.youtube' },
+                { name: 'Spotify', package: 'com.spotify.music', icon: '🎧' },
+                { name: 'Maps', package: 'com.google.android.apps.maps', icon: '📍' },
+                { name: 'Netflix', package: 'com.netflix.mediaclient', icon: '🍿' },
+                { name: 'Chrome', package: 'com.android.chrome', icon: '🌐' },
+                { name: 'YouTube', package: 'com.google.android.youtube', icon: '📺' },
+                { name: 'Files', package: 'com.android.documentsui', icon: '📂' },
             ];
         }
 

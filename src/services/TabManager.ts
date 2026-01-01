@@ -1,6 +1,6 @@
 import { signal } from '@preact/signals-core';
 
-export type TabId = 'dashboard' | 'apps' | 'weather' | 'settings';
+export type TabId = 'dashboard' | 'apps' | 'music' | 'diag' | 'weather' | 'settings';
 
 export class TabManager {
     activeTab = signal<TabId>('dashboard');
