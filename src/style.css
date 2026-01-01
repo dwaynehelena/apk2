@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --neon-cyan: #00f3ff;
+    --neon-magenta: #ff0055;
+    --neon-yellow: #faff00;
+    --neon-green: #00ff9d;
+    --bg-dark: #050505;
+    --glass-bg: rgba(20, 20, 25, 0.7);
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+}
+
+@layer components {
+    .glass-panel {
+        background-color: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .glass-btn {
+        background-color: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        color: white;
+        transition: all 0.2s;
+    }
+
+    .glass-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .glass-btn:active {
+        transform: scale(0.95);
+    }
+}

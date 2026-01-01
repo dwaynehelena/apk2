@@ -13,6 +13,7 @@ import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.BatteryManager;
+import android.os.Build;
 import android.util.Log;
 import java.util.List;
 
@@ -23,6 +24,7 @@ public class TwahhPlugin extends Plugin {
 
     @Override
     public void load() {
+        Log.d("TwahhPlugin", "TwahhPlugin Loaded and Registered!");
         IntentFilter filter = new IntentFilter();
         // Standard Android
         filter.addAction(Intent.ACTION_BATTERY_CHANGED);
@@ -56,7 +58,12 @@ public class TwahhPlugin extends Plugin {
                 notifyListeners("systemEvent", ret);
             }
         };
-        getContext().registerReceiver(receiver, filter);
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            getContext().registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
+        } else {
+            getContext().registerReceiver(receiver, filter);
+        }
     }
 
     @PluginMethod
