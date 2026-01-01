@@ -35,17 +35,40 @@ musicService.scanLibrary();
 import { DiagnosticsTab } from './components/DiagnosticsTab';
 const diagnosticsTab = new DiagnosticsTab(hal);
 
-import { BootScreen } from './components/BootScreen';
+import { LocationService } from './services/LocationService';
+import { CanbusService } from './services/CanbusService';
+import { OBD2Service } from './services/OBD2Service';
+
+const locationService = new LocationService(hal);
+const canbusService = new CanbusService(hal);
+const obd2Service = new OBD2Service(hal);
+
+// Native Bridge for Hardware Intents
+(window as any).TwahhNative = {
+    onMessage: (action: string, data: any) => {
+        if (action === 'gps') {
+            locationService.handleUpdate(data.lat, data.lng, data.heading);
+        } else if (action === 'canbus') {
+            canbusService.handleCanMessage(data.id, data.payload);
+        } else if (action === 'intent') {
+            canbusService.handleNativeIntent(data);
+        }
+    }
+};
 
 // Listen for Hardware Keys (SWC mapped to Android KeyCodes)
 window.addEventListener('keydown', (e) => {
-    // Determine code (mock mapping for dev)
     let code = 0;
     if (e.key === 'ArrowUp') code = 24; // Vol Up
     if (e.key === 'ArrowDown') code = 25; // Vol Down
     if (e.key === 'Enter') code = 85; // Play/Pause
 
-    if (code > 0) hal.handleSWC(code);
+    // Simulate reverse gear with 'r' key
+    if (e.key.toLowerCase() === 'r') {
+        hal.powertrain.gear.value = hal.powertrain.gear.value === 'R' ? 'P' : 'R';
+    }
+
+    if (code > 0) canbusService.handleCanMessage(0x201, [code === 24 ? 0x01 : code === 25 ? 0x02 : 0x00, code === 85 ? 0x01 : 0x00]);
 });
 
 // Mount Dashboard Layout
@@ -339,5 +362,10 @@ const bindDashboardEvents = () => {
             hal.powertrain.rpm.value = 800;
             hal.powertrain.gear.value = 'P';
         }
+    });
+
+    // OBD2 Scan Trigger
+    document.getElementById('btn-ac')?.addEventListener('click', () => {
+        obd2Service.scanForFaults();
     });
 };
