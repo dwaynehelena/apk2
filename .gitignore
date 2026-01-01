@@ -1,7 +1,7 @@
 node_modules/
 .DS_Store
 ._*
-*.apk
+
 build_status.json
 
 # Build and SDKs
