@@ -21,14 +21,14 @@ import { TabManager, TabId } from './services/TabManager';
 const tabManager = new TabManager();
 
 import { WeatherService } from './services/WeatherService';
-const weatherService = new WeatherService();
+const weatherService = new WeatherService(hal);
 
 import { WeatherWidget } from './components/WeatherWidget';
 const weatherWidget = new WeatherWidget(weatherService);
 
 import { MusicService } from './services/MusicService';
 import { MusicWidget } from './components/MusicWidget';
-const musicService = new MusicService();
+const musicService = new MusicService(hal);
 const musicWidget = new MusicWidget(musicService);
 musicService.scanLibrary();
 
@@ -255,8 +255,15 @@ effect(() => {
                             <h3 class="text-white font-bold italic text-lg">Holo Architecture</h3>
                             <span class="text-neon-magenta text-[10px] font-black uppercase tracking-widest">Version</span>
                         </div>
-                        <div class="bg-white/5 p-6 rounded-4xl border border-white/5 shadow-inner">
+                        <div class="bg-white/5 p-6 rounded-4xl border border-white/5 shadow-inner mb-2">
                             <span class="font-black text-white italic tracking-tighter text-3xl">${buildVer}</span>
+                        </div>
+                        
+                        <div class="flex justify-between items-center border-t border-white/5 pt-4">
+                            <span class="text-white/50 text-xs font-bold uppercase tracking-widest">Demo Mode</span>
+                            <button id="toggle-demo" class="glass-btn px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest ${hal.system.demoMode.value ? 'bg-neon-yellow/20 text-neon-yellow border-neon-yellow/50' : 'text-white/20 border-white/5'}">
+                                ${hal.system.demoMode.value ? 'ACTIVE' : 'OFF'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -283,6 +290,11 @@ effect(() => {
             content.querySelector('#set-theme-sport')?.addEventListener('click', () => {
                 themeManager.setTheme('sport');
                 tabManager.setTab('settings'); // Force re-render
+            });
+            content.querySelector('#toggle-demo')?.addEventListener('click', () => {
+                hal.system.demoMode.value = !hal.system.demoMode.value;
+                tabManager.setTab('settings'); // Force re-render
+                if (hal.system.demoMode.value) musicService.scanLibrary();
             });
         }, 0);
 

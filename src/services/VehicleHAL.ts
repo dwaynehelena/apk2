@@ -64,6 +64,11 @@ export class VehicleHAL {
         isScanning: signal(false)
     };
 
+    // System State
+    system = {
+        demoMode: signal(false) // Defaults to FALSE for production
+    };
+
     constructor() {
         // Mock Movement Simulation
         setInterval(() => {
