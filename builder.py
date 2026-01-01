@@ -94,6 +94,7 @@ import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.BatteryManager;
+import android.os.Build;
 import android.util.Log;
 import java.util.List;
 
@@ -104,6 +105,7 @@ public class TwahhPlugin extends Plugin {
 
     @Override
     public void load() {
+        Log.d("TwahhPlugin", "TwahhPlugin Loaded and Registered!");
         IntentFilter filter = new IntentFilter();
         // Standard Android
         filter.addAction(Intent.ACTION_BATTERY_CHANGED);
@@ -137,7 +139,12 @@ public class TwahhPlugin extends Plugin {
                 notifyListeners("systemEvent", ret);
             }
         };
-        getContext().registerReceiver(receiver, filter);
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            getContext().registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
+        } else {
+            getContext().registerReceiver(receiver, filter);
+        }
     }
 
     @PluginMethod
@@ -188,8 +195,8 @@ import android.os.Bundle;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
         registerPlugin(TwahhPlugin.class);
+        super.onCreate(savedInstanceState);
     }
 }
 """)
@@ -295,19 +302,50 @@ def main():
     update_status("Cleaning Ghost Files...", 60, "running", log_history)
     subprocess.run("find . -name '._*' -delete", cwd=os.getcwd(), shell=True)
 
-    update_status("Compiling Cyberpunk Launcher APK...", 70, "running", log_history)
+    # 4. Build APK & Increment Version
+    update_status("Versioning & Compiling...", 70, "running", log_history)
+    
+    # Read and Increment Version
+    new_version = "1.0.0"
+    if os.path.exists("package.json"):
+        with open("package.json", "r") as f:
+            # Auto-increment disabled to allow manual control
+            pkg = json.load(f)
+            new_version = pkg.get("version", "1.0.0")
+            print(f"Building with version: {new_version}")
+
+    # Sync version to build.gradle
+    app_gradle = "android/app/build.gradle"
+    if os.path.exists(app_gradle):
+        with open(app_gradle, "r") as f: lines = f.readlines()
+        with open(app_gradle, "w") as f:
+            for line in lines:
+                if "versionName" in line:
+                    f.write(f'        versionName "{new_version}"\n')
+                else:
+                    f.write(line)
+
     android_project_dir = os.path.abspath("android")
     if os.path.exists(os.path.join(android_project_dir, "gradlew")):
          os.chmod(os.path.join(android_project_dir, "gradlew"), 0o755)
+         
+         # Optional: Pass version to gradle if easy, otherwise just stick to filename for now
          ret, out = run_command("./gradlew assembleDebug", cwd=android_project_dir, env=env)
          log_history.extend(out)
          
          if ret == 0:
             update_status("Build Complete!", 100, "success", log_history)
             apk_path = "/tmp/twahh_build/app/outputs/apk/debug/app-debug.apk"
+            target_name = f"TwahhModelRM-v{new_version}.apk"
+            
             if os.path.exists(apk_path):
-                 print(f"Copying APK from {apk_path}...")
-                 shutil.copy(apk_path, "TwahhModelRM-Real.apk")
+                 print(f"Copying APK from {apk_path} to {target_name}...")
+                 shutil.copy(apk_path, target_name)
+                 # Also copy to USB if available
+                 usb_path = f"/Volumes/STORE N GO/{target_name}"
+                 if os.path.exists("/Volumes/STORE N GO"):
+                     print(f"Copying to USB: {usb_path}...")
+                     shutil.copy(apk_path, usb_path)
             else:
                  print("Searching for APK...")
                  subprocess.run("find /tmp/twahh_build -name '*.apk'", shell=True)
