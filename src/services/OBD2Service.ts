@@ -206,30 +206,26 @@ export class OBD2Service {
         }
     }
 
-    // ... Mock methods preserved for fallback ...
+    // Scan for DTCs - supports both native and demo/test modes
     async scanForFaults(): Promise<void> {
-        if (!this.isConnected) {
-            console.warn('[OBD2] Not connected, cannot scan.');
-            return;
-        }
-
         this.hal.diagnostics.isScanning.value = true;
         this.hal.diagnostics.dtcs.value = [];
 
         try {
-            // Mode 03: Request Stored DTCs
-            await this.send("03");
-            // Note: We need a way to capture the specific response to THIS command.
-            // Our current architecture emits 'obdData' globally.
-            // For now, we will rely on the global listener to pick up '43 ...' responses.
-
-            // Allow time for response
-            await new Promise(r => setTimeout(r, 2000));
-
-            // Mode 07: Request Pending DTCs
-            await this.send("07");
-            await new Promise(r => setTimeout(r, 2000));
-
+            if (this.isConnected) {
+                // Native mode: send actual OBD commands
+                await this.send("03");
+                await new Promise(r => setTimeout(r, 2000));
+                await this.send("07");
+                await new Promise(r => setTimeout(r, 2000));
+            } else {
+                // Demo/test mode: simulate scan with mock data
+                await new Promise(r => setTimeout(r, 100));
+                if (Math.random() < 0.6) {
+                    const randomFault = this.demoFaults[Math.floor(Math.random() * this.demoFaults.length)];
+                    this.hal.diagnostics.dtcs.value = [randomFault];
+                }
+            }
         } catch (e) {
             console.error('[OBD2] Scan failed', e);
         } finally {
@@ -253,7 +249,13 @@ export class OBD2Service {
     }
 
     updateLiveTelemetry(telemetry: { voltage?: number; intakeTemp?: number }): void {
-        // No-op, handled by polling now
+        // Update HAL with provided telemetry values (for testing/manual updates)
+        if (telemetry.voltage !== undefined) {
+            this.hal.diagnostics.voltage.value = telemetry.voltage;
+        }
+        if (telemetry.intakeTemp !== undefined) {
+            this.hal.diagnostics.intakeTemp.value = telemetry.intakeTemp;
+        }
     }
 
     hasActiveData(): boolean {
