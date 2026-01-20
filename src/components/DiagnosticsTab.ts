@@ -1,12 +1,18 @@
 import { VehicleHAL } from '../services/VehicleHAL';
 import { effect } from '@preact/signals-core';
 
+import { OBD2Service } from '../services/OBD2Service';
+
 export class DiagnosticsTab {
     element: HTMLDivElement;
 
-    constructor(private hal: VehicleHAL) {
+    constructor(private hal: VehicleHAL, private obd: OBD2Service) {
         this.element = document.createElement('div');
-        this.element.className = 'p-6 flex flex-col gap-6 h-full font-sans overflow-y-auto';
+        this.element.style.height = '100%';
+        this.element.style.display = 'flex';
+        this.element.style.flexDirection = 'column';
+        this.element.style.gap = '20px';
+        this.element.style.padding = '20px';
 
         effect(() => {
             const diag = this.hal.diagnostics;
@@ -14,57 +20,56 @@ export class DiagnosticsTab {
             const isScanning = diag.isScanning.value;
 
             this.element.innerHTML = `
-                <div class="flex justify-between items-center mb-8">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h2 class="text-3xl font-bold text-white tracking-tighter italic">Vitals <span class="text-neon-cyan">& Diagnostics</span></h2>
-                        <p class="text-white/30 text-[10px] uppercase tracking-[0.4em] mt-1 font-bold">OBD-II Real-time Telemetry</p>
+                        <h2 class="text-glow text-primary" style="margin: 0; font-size: 28px;">DIAGNOSTICS</h2>
+                        <p style="margin: 0; font-size: 10px; opacity: 0.6; letter-spacing: 2px;">OBD-II REAL-TIME TELEMETRY</p>
                     </div>
-                    <div class="flex gap-3">
-                        <button id="btn-scan" class="glass-btn px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest ${isScanning ? 'opacity-50 cursor-not-allowed' : 'text-neon-cyan'} border-neon-cyan/20">
-                            ${isScanning ? '<span class="animate-pulse">Analyzing...</span>' : 'Initiate Full Scan'}
+                    <div style="display: flex; gap: 10px;">
+                         <button id="btn-deep-diag" class="q-btn" style="border-color: var(--q-warning); color: var(--q-warning);">
+                            ADVANCED TOOLS
                         </button>
-                        <button id="btn-clear" class="glass-btn px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest text-white/40 border-white/5 hover:text-white">
-                            Purge Logs
+                        <button id="btn-scan" class="q-btn" style="${isScanning ? 'opacity: 0.5; cursor: wait;' : ''}">
+                            ${isScanning ? 'SCANNING...' : 'FULL SYSTEM SCAN'}
+                        </button>
+                        <button id="btn-clear" class="q-btn" style="border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.5);">
+                            CLEAR CODES
                         </button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex: 1;">
                     <!-- Live Stats -->
-                    <div class="m3-card p-8 flex flex-col gap-6 relative group overflow-hidden">
-                        <div class="absolute -right-16 -bottom-16 w-48 h-48 bg-neon-green/5 blur-3xl rounded-full group-hover:bg-neon-green/10 transition duration-700"></div>
-                        <h3 class="text-neon-green text-[10px] font-black uppercase tracking-[0.3em]">Telemetry Flux</h3>
+                    <div class="quantum-card" style="display: flex; flex-direction: column; gap: 20px;">
+                        <div class="card-title">TELEMETRY FLUX</div>
                         
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center bg-white/5 p-6 rounded-4xl border border-white/5 hover:border-neon-green/30 transition shadow-inner">
-                                <span class="text-white/50 text-sm font-medium italic">Battery Potential</span>
-                                <span class="text-4xl font-bold text-neon-green text-glow">${diag.voltage.value}<span class="text-sm ml-1 opacity-50">V</span></span>
-                            </div>
-                            <div class="flex justify-between items-center bg-white/5 p-6 rounded-4xl border border-white/5 hover:border-neon-yellow/30 transition shadow-inner">
-                                <span class="text-white/50 text-sm font-medium italic">Thermal Intake</span>
-                                <span class="text-4xl font-bold text-neon-yellow text-glow">${diag.intakeTemp.value}<span class="text-sm ml-1 opacity-50">°C</span></span>
-                            </div>
+                        <div class="glass-panel" style="padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="opacity: 0.7; font-size: 14px;">BATTERY</span>
+                            <span class="text-glow text-primary" style="font-size: 32px;">${diag.voltage.value}<span style="font-size: 14px; opacity: 0.5;">V</span></span>
+                        </div>
+                        <div class="glass-panel" style="padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="opacity: 0.7; font-size: 14px;">INTAKE TEMP</span>
+                            <span class="text-glow text-warn" style="font-size: 32px;">${diag.intakeTemp.value}<span style="font-size: 14px; opacity: 0.5;">°C</span></span>
                         </div>
                     </div>
 
                     <!-- DTC List -->
-                    <div class="m3-card p-8 flex flex-col gap-6 relative group overflow-hidden h-[340px]">
-                        <div class="absolute -right-16 -top-16 w-48 h-48 bg-neon-magenta/5 blur-3xl rounded-full group-hover:bg-neon-magenta/10 transition duration-700"></div>
-                        <h3 class="text-neon-magenta text-[10px] font-black uppercase tracking-[0.3em]">Signal Anomalies</h3>
+                    <div class="quantum-card" style="display: flex; flex-direction: column;">
+                         <div class="card-title">SIGNAL ANOMALIES</div>
                         
-                        <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                        <div style="flex: 1; overflow-y: auto; padding-right: 5px;">
                             ${dtcs.length === 0
                     ? `
-                                <div class="h-full flex flex-col items-center justify-center text-center opacity-40">
-                                    <div class="text-6xl mb-4">🛡️</div>
-                                    <div class="text-neon-green text-xs font-black uppercase tracking-widest">Shields Nominal</div>
+                                <div style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.3;">
+                                    <span style="font-size: 40px;">🛡️</span>
+                                    <span style="font-size: 12px; font-weight: bold; margin-top: 10px;">SYSTEM NOMINAL</span>
                                 </div>`
                     : dtcs.map(code => `
-                                    <div class="flex items-center gap-4 text-neon-magenta mb-4 bg-neon-magenta/5 p-5 rounded-4xl border border-neon-magenta/20 animate-float">
-                                        <div class="w-10 h-10 rounded-2xl bg-neon-magenta/10 flex items-center justify-center text-xl">⚠️</div>
+                                    <div class="glass-panel" style="padding: 15px; margin-bottom: 10px; border-left: 3px solid var(--q-accent); display: flex; align-items: center; gap: 15px;">
+                                        <span style="font-size: 20px;">⚠️</span>
                                         <div>
-                                            <div class="font-black text-sm tracking-widest">${code.split(' ')[0]}</div>
-                                            <div class="text-[10px] opacity-60 uppercase font-bold mt-1">${code.split(' ').slice(1).join(' ')}</div>
+                                            <div style="font-weight: bold; color: var(--q-accent);">${code.split(' ')[0]}</div>
+                                            <div style="font-size: 10px; opacity: 0.7;">${code.split(' ').slice(1).join(' ')}</div>
                                         </div>
                                     </div>
                                 `).join('')
@@ -74,23 +79,70 @@ export class DiagnosticsTab {
                 </div>
 
                 <!-- Monitor Readiness -->
-                <div class="m3-card p-8 mt-2">
-                     <h3 class="text-white/30 text-[10px] font-black uppercase tracking-[0.3em] mb-6">Subsystem Readiness</h3>
-                     <div class="grid grid-cols-4 gap-6">
+                <div class="quantum-card" style="padding: 15px;">
+                     <div class="card-title" style="margin-bottom: 10px;">SUBSYSTEM READINESS</div>
+                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
                         ${['MIL', 'EVAP', 'O2S', 'CAT'].map(sys => `
-                            <div class="flex flex-col items-center gap-3">
-                                <div class="w-16 h-1.5 rounded-full bg-white/5 relative overflow-hidden">
-                                     <div class="absolute inset-y-0 left-0 w-full bg-neon-green shadow-[0_0_10px_rgba(0,255,157,0.5)]"></div>
+                            <div style="text-align: center;">
+                                <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-bottom: 5px; overflow: hidden;">
+                                     <div style="width: 100%; height: 100%; background: var(--q-success); box-shadow: 0 0 5px var(--q-success);"></div>
                                 </div>
-                                <span class="text-[10px] text-white/40 font-black tracking-widest">${sys}</span>
+                                <span style="font-size: 10px; font-weight: bold; opacity: 0.5;">${sys}</span>
                             </div>
                         `).join('')}
                      </div>
                 </div>
+                <div class="quantum-card" style="margin-top: 20px;">
+                    <div class="card-title">NATIVE DEBUG CONSOLE</div>
+                    <div id="native-console" style="background: rgba(0,0,0,0.5); font-family: 'Roboto Mono', monospace; font-size: 10px; color: #0f0; padding: 10px; height: 150px; overflow-y: auto; white-space: pre-wrap;">
+                        > INITIALIZING...
+                    </div>
+                </div>
+
+                <!-- Network Tools -->
+                 <div class="quantum-card" style="margin-top: 20px;">
+                    <div class="card-title">NETWORK PROBE</div>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-net-scan" class="q-btn" style="flex: 1;">SCAN 192.168.0.*</button>
+                    </div>
+                 </div>
             `;
 
-            this.element.querySelector('#btn-scan')?.addEventListener('click', () => this.hal.scanDTCs());
-            this.element.querySelector('#btn-clear')?.addEventListener('click', () => this.hal.clearDTCs());
+            this.element.querySelector('#btn-scan')?.addEventListener('click', () => {
+                this.obd.connectWifi();
+                this.obd.scanForFaults();
+            });
+            this.element.querySelector('#btn-clear')?.addEventListener('click', () => this.obd.clearFaults());
+
+            this.element.querySelector('#btn-net-scan')?.addEventListener('click', () => {
+                const { TwahhPlugin } = (window as any).Capacitor.Plugins;
+                if (TwahhPlugin) TwahhPlugin.scanNetwork();
+            });
+
+            this.element.querySelector('#btn-deep-diag')?.addEventListener('click', () => {
+                import('./DeepDiagnostics').then(({ DeepDiagnostics }) => {
+                    const deep = new DeepDiagnostics(this.hal, this.obd, () => {
+                        // On close
+                    });
+                    document.body.appendChild(deep.element);
+                });
+            });
+
+            // Start Log Polling
+            setInterval(async () => {
+                if (!this.element.isConnected) return;
+                const { TwahhPlugin } = (window as any).Capacitor?.Plugins || {};
+                if (TwahhPlugin && TwahhPlugin.getPluginLogs) {
+                    try {
+                        const res = await TwahhPlugin.getPluginLogs();
+                        const consoleEl = this.element.querySelector('#native-console');
+                        if (consoleEl && res.logs) {
+                            consoleEl.innerHTML = res.logs.join('\n');
+                            consoleEl.scrollTop = consoleEl.scrollHeight;
+                        }
+                    } catch (e) { }
+                }
+            }, 1000);
         });
     }
 }

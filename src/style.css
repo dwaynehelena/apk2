@@ -1,95 +1,515 @@
-@import "tailwindcss";
-
-@theme {
-    --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
-
-    --radius-4xl: 2rem;
-    --radius-5xl: 2.5rem;
-
-    --color-neon-cyan: var(--neon-cyan);
-    --color-neon-magenta: var(--neon-magenta);
-    --color-neon-yellow: var(--neon-yellow);
-    --color-neon-green: var(--neon-green);
-    --color-bg-dark: var(--bg-dark);
-    --color-glass-bg: var(--glass-bg);
-
-    --animate-spin-slow: spin 8s linear infinite;
-    --animate-float: float 6s ease-in-out infinite;
-    --animate-pulse-fast: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    --animate-scan: scan 3s linear infinite;
-
-    @keyframes float {
-
-        0%,
-        100% {
-            transform: translateY(0);
-        }
-
-        50% {
-            transform: translateY(-10px);
-        }
-    }
-
-    @keyframes scan {
-        0% {
-            background-position: 0 -100%;
-        }
-
-        100% {
-            background-position: 0 100%;
-        }
-    }
-}
+/* Quantum Design System - 1280x720 Native */
 
 :root {
-    --neon-cyan: #00f3ff;
-    --neon-magenta: #ff0055;
-    --neon-yellow: #faff00;
-    --neon-green: #00ff9d;
-    --bg-dark: #050505;
-    --glass-bg: rgba(20, 20, 25, 0.7);
+    /* Quantum Palette */
+    --q-bg-dark: #050505;
+    --q-bg-panel: rgba(10, 15, 20, 0.85);
+    --q-primary: #00f0ff;
+    /* Neon Cyan */
+    --q-secondary: #7000ff;
+    /* Electric Purple */
+    --q-accent: #ff003c;
+    /* Cyber Red */
+    --q-success: #00ff9d;
+    --q-warning: #ffd700;
+    --q-text-main: #e0e0e0;
+    --q-text-muted: #808080;
+
+    /* Dimensions */
+    --sidebar-width: 100px;
+    --header-height: 70px;
+    --screen-width: 1280px;
+    --screen-height: 720px;
+
+    /* Effects */
+    --glass-blur: blur(20px);
+    --panel-border: 1px solid rgba(255, 255, 255, 0.08);
+    --neon-glow: 0 0 10px rgba(0, 240, 255, 0.5);
+
+    /* Typography */
+    --font-heading: 'Outfit', sans-serif;
+    --font-mono: 'Roboto Mono', monospace;
+}
+
+/* Reset & Base */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    user-select: none;
 }
 
 body {
-    background-color: var(--bg-dark);
-    color: #fff;
-    font-family: var(--font-sans);
+    margin: 0;
+    padding: 0;
+    width: 1280px;
+    height: 720px;
+    background-color: var(--q-bg-dark);
+    color: var(--q-text-main);
+    font-family: var(--font-heading);
     overflow: hidden;
+    background-image:
+        radial-gradient(circle at 50% 50%, #101520 0%, #050505 80%);
 }
 
-@utility glass-panel {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    border-left: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow:
-        0 8px 32px 0 rgba(0, 0, 0, 0.37),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+#app {
+    width: 100%;
+    height: 100%;
 }
 
-@utility glass-btn {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-    position: relative;
-    overflow: hidden;
+/* Animations */
+@keyframes pulse {
+    0% {
+        opacity: 0.8;
+        box-shadow: 0 0 5px var(--q-primary);
+    }
 
-    &:hover {
-        background: rgba(255, 255, 255, 0.15);
-        box-shadow: 0 0 20px var(--neon-cyan);
-        border-color: var(--neon-cyan);
-        transform: translateY(-2px) scale(1.02);
+    50% {
+        opacity: 1;
+        box-shadow: 0 0 20px var(--q-primary);
+    }
+
+    100% {
+        opacity: 0.8;
+        box-shadow: 0 0 5px var(--q-primary);
     }
 }
 
-@utility text-glow {
-    text-shadow: 0 0 12px currentColor, 0 0 24px currentColor;
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
-@utility m3-card {
-    @apply glass-panel rounded-5xl border-white/20;
+@keyframes scanline {
+    0% {
+        transform: translateY(-100%);
+    }
+
+    100% {
+        transform: translateY(100%);
+    }
+}
+
+/* Layout Utilities */
+.quantum-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+.quantum-sidebar {
+    width: var(--sidebar-width);
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    border-right: var(--panel-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.quantum-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.quantum-header {
+    height: var(--header-height);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    border-bottom: var(--panel-border);
+    background: linear-gradient(90deg, transparent 0%, rgba(0, 240, 255, 0.05) 50%, transparent 100%);
+}
+
+.quantum-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    /* Grid Pattern Background */
+    background-size: 40px 40px;
+    background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+/* Components */
+.glass-panel {
+    background: var(--q-bg-panel);
+    backdrop-filter: var(--glass-blur);
+    border: var(--panel-border);
+    border-radius: 12px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.nav-btn {
+    width: 70px;
+    height: 70px;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--q-text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nav-btn .icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.2));
+}
+
+.nav-btn span {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.nav-btn.active {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: var(--q-primary);
+    color: var(--q-primary);
+    box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.2);
+}
+
+.nav-btn.active .icon {
+    filter: drop-shadow(0 0 5px var(--q-primary));
+}
+
+.quantum-card {
+    background: var(--q-bg-panel);
+    border: var(--panel-border);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+}
+
+.quantum-card::before {
+    /* Corner Accent */
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 2px;
+    background: var(--q-primary);
+    box-shadow: 0 0 5px var(--q-primary);
+}
+
+.card-title {
+    font-family: var(--font-heading);
+    font-size: 14px;
+    color: var(--q-primary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+    padding-bottom: 8px;
+}
+
+/* Grid System for Dashboard */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 300px);
+    /* Fixed height rows */
+    gap: 20px;
+}
+
+.col-span-2 {
+    grid-column: span 2;
+}
+
+.row-span-2 {
+    grid-row: span 2;
+}
+
+/* Typography Helpers */
+.text-glow {
+    text-shadow: 0 0 8px currentColor;
+}
+
+.text-xl {
+    font-size: 24px;
+}
+
+.text-2xl {
+    font-size: 32px;
+}
+
+.text-4xl {
+    font-size: 48px;
+}
+
+.text-mono {
+    font-family: var(--font-mono);
+}
+
+.text-primary {
+    color: var(--q-primary);
+}
+
+.text-accent {
+    color: var(--q-accent);
+}
+
+.text-warn {
+    color: var(--q-warning);
+}
+
+/* Buttons */
+.q-btn {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 10px 20px;
+    font-family: var(--font-heading);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.q-btn:active {
+    background: var(--q-primary);
+    color: black;
+    border-color: var(--q-primary);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--q-primary);
+    border-radius: 2px;
+}
+
+/* Showcase Specifics */
+.startup-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: black;
+    position: relative;
+    z-index: 9999;
+}
+
+/* --- Performance Tab Styles --- */
+.perf-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 20px;
+    height: 100%;
+}
+
+.perf-card h3 {
+    color: var(--q-primary);
+    margin: 0 0 10px 0;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+    font-size: 14px;
+    letter-spacing: 2px;
+}
+
+.digital-readout {
+    font-size: 64px;
+    font-family: var(--font-mono);
+    color: white;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    text-align: center;
+    margin: 20px 0;
+}
+
+.g-circle {
+    width: 150px;
+    height: 150px;
+    border: 2px solid var(--q-primary);
+    border-radius: 50%;
+    margin: 20px auto;
+    background: radial-gradient(circle, rgba(0, 240, 255, 0.1) 0%, transparent 70%);
+    position: relative;
+}
+
+.g-dot {
+    width: 20px;
+    height: 20px;
+    background: var(--q-accent);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -10px;
+    margin-left: -10px;
+    box-shadow: 0 0 10px var(--q-accent);
+    transition: transform 0.1s linear;
+}
+
+.power-val {
+    font-size: 48px;
+    color: var(--q-secondary);
+    font-family: var(--font-mono);
+}
+
+.gauge-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* --- Offroad Tab Styles --- */
+.offroad-grid {
+    display: flex;
+    gap: 20px;
+    height: 100%;
+}
+
+.main-vis {
+    flex: 2;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.side-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.vehicle-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.jeep-roll-view {
+    position: absolute;
+    top: 50%;
+    left: 25%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    text-align: center;
+}
+
+.jeep-roll-view img {
+    width: 100%;
+    transition: transform 0.1s linear;
+}
+
+.jeep-pitch-view {
+    position: absolute;
+    top: 50%;
+    left: 75%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 100px;
+    border: 2px solid var(--q-primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.jeep-side-shape {
+    width: 150px;
+    height: 10px;
+    background: var(--q-primary);
+    transition: transform 0.1s linear;
+}
+
+.angle-overlay {
+    font-size: 24px;
+    color: var(--q-primary);
+    margin-top: 10px;
+    font-family: var(--font-mono);
+}
+
+.compass-ring {
+    width: 100px;
+    height: 100px;
+    border: 2px dashed var(--q-primary);
+    border-radius: 50%;
+    margin: 20px auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s linear;
+}
+
+.compass-ring span {
+    position: absolute;
+    top: 5px;
+    font-weight: bold;
+    color: var(--q-accent);
+}
+
+.drivetrain-status {
+    display: grid;
+    grid-template-columns: 20px 50px 20px;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.wheel {
+    width: 20px;
+    height: 40px;
+    border: 2px solid var(--q-text-muted);
+    border-radius: 4px;
+}
+
+.wheel.fl,
+.wheel.fr,
+.wheel.rl,
+.wheel.rr {
+    background: var(--q-success);
+    /* 4WD Active */
+    box-shadow: 0 0 5px var(--q-success);
+    border-color: var(--q-success);
+}
+
+/* --- Night Mode --- */
+.night-mode {
+    filter: brightness(0.6) contrast(1.2);
+    transition: filter 2s ease;
+}
+
+.night-mode .quantum-sidebar,
+.night-mode .quantum-header {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.night-mode .quantum-card {
+    background: rgba(5, 5, 5, 0.9);
+    border-color: rgba(0, 240, 255, 0.05);
 }

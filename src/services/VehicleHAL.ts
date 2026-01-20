@@ -1,4 +1,29 @@
-import { signal } from '@preact/signals-core';
+import { signal, computed } from '@preact/signals-core';
+import { registerPlugin } from '@capacitor/core';
+import { FytCanbusCodes, FytBroadcastPayload, FYT_BRIDGE_EVENT } from './FytTypes';
+
+/**
+ * Data model for FYT platform car sensors.
+ * This class includes standard conversions from the raw MCU/CANbus values.
+ */
+export interface CarSensorData {
+    rawSpeed: number;    // Raw value from com.syu.ms
+    rawRpm: number;      // Raw value from com.syu.ms
+    voltage: number;  // Battery voltage
+    fuelLevel: number;   // 0-100 percentage
+    isHandbrakeOn: boolean;
+    isHeadlightsOn: boolean;
+    outsideTemp: number;
+    doorStatus: DoorStatus;
+}
+
+export interface DoorStatus {
+    driver: boolean;
+    passenger: boolean;
+    rearLeft: boolean;
+    rearRight: boolean;
+    trunk: boolean;
+}
 
 export class VehicleHAL {
     // Powertrain Signals
@@ -8,7 +33,15 @@ export class VehicleHAL {
         gear: signal('N'),
         boost: signal(0),
         oil: signal(90),
-        coolant: signal(85)
+        coolant: signal(85),
+        fuelLevel: signal(75), // %
+        batteryVoltage: signal(12.6), // Volts
+        load: signal(0), // %
+        throttle: signal(0), // %
+        intakeTemp: signal(0), // C
+        oilTemp: signal(0), // C
+        transTemp: signal(0), // C
+        fuelEco: signal(0)    // L/100km
     };
 
     // Body Signals
@@ -21,31 +54,62 @@ export class VehicleHAL {
             hood: signal(false),
             trunk: signal(false)
         },
+        locked: signal(false),
+        seatbelt: {
+            driver: signal(true), // true = buckled
+            passenger: signal(true)
+        },
+        parkingBrake: signal(false), // true = engaged
         climate: {
-            on: signal(false),
-            tempL: signal(20),
-            tempR: signal(20),
-            fan: signal(0)
+            tempL: signal(20.0),
+            tempR: signal(20.0),
+            fanSpeed: signal(2), // 0-7
+            ac: signal(false)
         },
         lights: {
-            on: signal(false),
+            on: signal(false), // Headlights
             highBeam: signal(false),
             hazards: signal(false)
-        }
+        },
+        outdoorTemp: signal(20) // Celsius
     };
 
+    // Motion Signals (GPS/Accel)
     // Motion Signals (GPS/Accel)
     motion = {
         location: {
             lat: signal(0),
             lng: signal(0),
             heading: signal(0),
-            elevation: signal(0)
+            elevation: signal(0),
+            odometer: signal(123456) // km
         },
         accel: {
             x: signal(0),
             y: signal(0),
             z: signal(9.81)
+        },
+        // NEW: Off-road Orientation
+        orientation: {
+            pitch: signal(0), // degrees (-up/+down)
+            roll: signal(0),  // degrees (-left/+right)
+            compass: signal('N')
+        },
+        // NEW: Max recorded G-Forces
+        gForce: {
+            current: signal(0),
+            maxLat: signal(0),
+            maxLong: signal(0)
+        },
+        trip: {
+            distance: signal(0), // km
+            duration: signal(0), // seconds
+            avgSpeed: signal(0)
+        },
+        perf: {
+            timer0100: signal(0), // seconds
+            isTimerRunning: signal(false),
+            best0100: signal(0)
         }
     };
 
@@ -60,34 +124,118 @@ export class VehicleHAL {
     diagnostics = {
         dtcs: signal<string[]>([]),
         voltage: signal(14.2),
+        minVoltage: signal(14.2),
+        maxVoltage: signal(14.2),
         intakeTemp: signal(35),
-        isScanning: signal(false)
+        isScanning: signal(false),
+        serviceDueKm: signal(5000)
     };
 
     // System State
     system = {
-        demoMode: signal(false) // Defaults to FALSE for production
+        demoMode: signal(false), // Defaults to FALSE for production
+        canbusActive: signal(false) // True if receiving data
     };
 
-    constructor() {
-        // Mock Movement Simulation
-        setInterval(() => {
-            if (this.powertrain.speed.value > 0) {
-                // Drift location based on heading
-                const speed = this.powertrain.speed.value / 36000; // km/h to units/100ms
-                const heading = this.motion.location.heading.value * (Math.PI / 180);
-                this.motion.location.lat.value += Math.cos(heading) * speed;
-                this.motion.location.lng.value += Math.sin(heading) * speed;
+    // Computed Advanced Logic
+    safetyLock = computed(() => {
+        // "Safety Lock": If speedKmh > 5 and isHandbrakeOn == false
+        return this.powertrain.speed.value > 5 && !this.body.parkingBrake.value;
+    });
 
-                // Simulate Accel based on speed changes
-                this.motion.accel.x.value = (Math.random() - 0.5) * 2;
-                this.motion.accel.y.value = (Math.random() - 0.5) * 2;
-            } else {
-                this.motion.accel.x.value *= 0.8;
-                this.motion.accel.y.value *= 0.8;
-            }
-        }, 100);
+    private lastAidlUpdate: number = 0;
+
+    isAidlActive(): boolean {
+        return (Date.now() - this.lastAidlUpdate) < 3000;
     }
+
+    nightMode = computed(() => {
+        // "Night Shift": Triggered by headlights
+        return this.body.lights.on.value;
+    });
+
+    private fytAdapter: FytAdapter;
+    private canbusTimeout: any;
+
+    constructor() {
+        this.fytAdapter = new FytAdapter(this);
+
+        // Start listening to native events
+        this.initFytBridge();
+
+        // Fallback to mock loop ONLY if dev/demo mode or no bridge
+        // Start logic loop for timers/trips
+        this.startLogicLoop();
+
+        // Fallback to mock loop ONLY if dev/demo mode or no bridge
+        // DISABLED FOR PRODUCTION: User requires Strict Native Mode
+        // this.startMockLoop();
+    }
+
+    // Called by Adapter when valid data arrives
+    notifyCanbusActivity() {
+        this.system.canbusActive.value = true;
+        clearTimeout(this.canbusTimeout);
+        this.canbusTimeout = setTimeout(() => {
+            this.system.canbusActive.value = false;
+        }, 3000); // 3 seconds timeout
+    }
+
+    private initFytBridge() {
+        console.log('[VehicleHAL] Initializing FYT Bridge...');
+
+        // 1. Listen for the custom event (Legacy / WebView bridge)
+        window.addEventListener(FYT_BRIDGE_EVENT, (event: any) => {
+            const detail = event.detail as FytBroadcastPayload;
+            if (detail && detail.codes) {
+                this.fytAdapter.handleUpdate(detail.codes);
+            }
+        });
+
+        // 2. Listen for Capacitor Plugin events (Native Bridge via builder.py)
+        try {
+            const TwahhPlugin = registerPlugin<any>('TwahhPlugin');
+            TwahhPlugin.addListener('systemEvent', (data: any) => {
+                // console.log('[VehicleHAL] RX:', JSON.stringify(data));
+                // builder.py/TwahhPlugin.java maps intent extras to JSON keys
+                // We check for "codes" which we handle specifically
+                if (data.codes && Array.isArray(data.codes)) {
+                    this.fytAdapter.handleUpdate(data.codes);
+                    this.lastAidlUpdate = Date.now();
+                }
+            });
+
+            TwahhPlugin.addListener('canbusDump', (data: any) => {
+                if (data.type === 'aidl_real' || data.type === 'aidl_success') {
+                    this.lastAidlUpdate = Date.now();
+                    this.fytAdapter.handleSnifferUpdate(data);
+                }
+            });
+            console.log('[VehicleHAL] Native TwahhPlugin registered.');
+        } catch (e) {
+            console.warn('[VehicleHAL] TwahhPlugin not available (Web Mode?)', e);
+        }
+
+        // Fallback/Legacy Access for Head Unit
+        if ((window as any).Capacitor?.Plugins?.TwahhPlugin) {
+            try {
+                (window as any).Capacitor.Plugins.TwahhPlugin.addListener('systemEvent', (data: any) => {
+                    if (data.codes && Array.isArray(data.codes)) {
+                        this.fytAdapter.handleUpdate(data.codes);
+                    }
+                });
+                console.log('[VehicleHAL] Legacy TwahhPlugin listener attached.');
+            } catch (e) {
+                console.warn('[VehicleHAL] Failed to attach legacy listener', e);
+            }
+        }
+
+        // Check availability of direct bridge
+        if (window.fytBridge) {
+            console.log('[VehicleHAL] Native FYT Bridge found.');
+        }
+    }
+
 
     readState() {
         // Return structure compatible with tests/legacy views
@@ -99,9 +247,7 @@ export class VehicleHAL {
         }
     }
 
-    updateRPM(rpm: number) {
-        this.powertrain.rpm.value = rpm;
-    }
+
 
     toggleDoor(door: keyof typeof this.body.doors) {
         this.body.doors[door].value = !this.body.doors[door].value;
@@ -143,5 +289,207 @@ export class VehicleHAL {
 
     clearDTCs() {
         this.diagnostics.dtcs.value = [];
+    }
+
+    // Powertrain Update Methods
+    updateRPM(rpm: number, isNative: boolean = false) {
+        if (!isNative && this.isAidlActive()) return; // Prioritize AIDL
+        this.powertrain.rpm.value = Math.round(rpm);
+    }
+
+    updateVoltage(v: number, isNative: boolean = false) {
+        if (!isNative && this.isAidlActive()) return; // Prioritize AIDL
+
+        this.powertrain.batteryVoltage.value = Number(v.toFixed(2));
+        if (v < this.diagnostics.minVoltage.value) this.diagnostics.minVoltage.value = v;
+        if (v > this.diagnostics.maxVoltage.value) this.diagnostics.maxVoltage.value = v;
+    }
+
+    // Logic Update Loop (runs at 10Hz)
+    private lastUpdateTime = Date.now();
+    private perfStartTime = 0;
+
+    startLogicLoop() {
+        setInterval(() => {
+            const now = Date.now();
+            const deltaMs = now - this.lastUpdateTime;
+            const deltaSec = deltaMs / 1000;
+            this.lastUpdateTime = now;
+
+            const speed = this.powertrain.speed.value;
+
+            // 1. Trip Distance integration
+            if (speed > 0) {
+                const distKm = (speed * deltaSec) / 3600;
+                this.motion.trip.distance.value += distKm;
+                this.motion.trip.duration.value += deltaSec;
+            }
+
+            // 2. 0-100 Performance Timer
+            if (speed > 1 && !this.motion.perf.isTimerRunning.value && this.motion.perf.timer0100.value === 0) {
+                this.motion.perf.isTimerRunning.value = true;
+                this.perfStartTime = now;
+            } else if (this.motion.perf.isTimerRunning.value) {
+                if (speed >= 100) {
+                    this.motion.perf.isTimerRunning.value = false;
+                    const elapsed = (now - this.perfStartTime) / 1000;
+                    this.motion.perf.timer0100.value = elapsed;
+                    if (this.motion.perf.best0100.value === 0 || elapsed < this.motion.perf.best0100.value) {
+                        this.motion.perf.best0100.value = elapsed;
+                    }
+                } else if (speed < 1 && (now - this.perfStartTime) > 2000) {
+                    // Reset if stopped for too long while trying
+                    this.motion.perf.isTimerRunning.value = false;
+                    this.motion.perf.timer0100.value = 0;
+                } else {
+                    this.motion.perf.timer0100.value = (now - this.perfStartTime) / 1000;
+                }
+            } else if (speed < 1) {
+                // Ready for next run if stopped
+                this.motion.perf.timer0100.value = 0;
+            }
+
+            // 3. Fuel Economy (Mock logic based on load)
+            const load = this.powertrain.load.value;
+            const rpm = this.powertrain.rpm.value;
+            if (speed > 10) {
+                const estL100 = (load * 0.15) + (rpm / 1000) * 2; // Very crude JK Wrangler style estimate
+                this.powertrain.fuelEco.value = Number(estL100.toFixed(1));
+            } else {
+                this.powertrain.fuelEco.value = 0;
+            }
+        }, 100);
+    }
+}
+
+/**
+ * Adapter to translate raw FYT arrays into VehicleHAL signals.
+ * Implements HEX parsing logic for 0x11, 0x12, 0x15, 0x16 commands.
+ */
+class FytAdapter {
+    private hal: VehicleHAL;
+
+    constructor(hal: VehicleHAL) {
+        this.hal = hal;
+    }
+
+    handleUpdate(codes: number[]) {
+        if (!codes || codes.length < 2) return;
+
+        // Notify HAL of activity
+        this.hal.notifyCanbusActivity();
+
+        const type = codes[0];
+        // codes[1...] are payload
+
+        switch (type) {
+            case FytCanbusCodes.CANBUS_RPM_SPEED:
+                // Legacy / Standard handling
+                if (codes.length >= 4) {
+                    const speed = codes[1]; // usually km/h
+                    const rpm = (codes[2] << 8) | codes[3];
+                    this.hal.powertrain.speed.value = speed;
+                    this.hal.powertrain.rpm.value = rpm;
+                }
+                break;
+
+            // New HEX Logic Parsing
+            case 0x11: // Speed
+                // value = byte[0]
+                if (codes.length >= 2) this.hal.powertrain.speed.value = codes[1];
+                break;
+
+            case 0x12: // RPM
+                // value = (byte[0] << 8) | byte[1] (Assuming 2 byte payload for reliability, though spec said byte[0]<<8)
+                // Let's assume standard big-endian 2 byte
+                if (codes.length >= 3) {
+                    this.hal.powertrain.rpm.value = (codes[1] << 8) | codes[2];
+                } else if (codes.length === 2) {
+                    // Spec suggested byte[0] << 8, but that implies only hundreds?
+                    // Let's stick to standard HL byte pair from existing implementation if available
+                    this.hal.powertrain.rpm.value = codes[1] * 100; // Crude approximation if only 1 byte
+                }
+                break;
+
+            case 0x15: // Voltage
+                // value = byte[0] / 10.0f
+                if (codes.length >= 2) this.hal.updateVoltage(codes[1] / 10.0);
+                break;
+
+            case 0x16: // Temp
+                // value = byte[0] - 40
+                if (codes.length >= 2) this.hal.body.outdoorTemp.value = codes[1] - 40;
+                break;
+
+            case FytCanbusCodes.CANBUS_DOOR_INFO:
+                const mask = codes[1];
+                this.hal.body.doors.fl.value = !!(mask & 0x01);
+                this.hal.body.doors.fr.value = !!(mask & 0x02);
+                this.hal.body.doors.rl.value = !!(mask & 0x04);
+                this.hal.body.doors.rr.value = !!(mask & 0x08);
+                this.hal.body.doors.hood.value = !!(mask & 0x10);
+                this.hal.body.doors.trunk.value = !!(mask & 0x20);
+                break;
+
+            case FytCanbusCodes.CANBUS_TEMP_INFO:
+                if (codes.length >= 3) {
+                    this.hal.body.climate.tempL.value = codes[1];
+                    this.hal.body.climate.tempR.value = codes[2];
+                    if (codes.length > 3) this.hal.body.outdoorTemp.value = codes[3];
+                }
+                break;
+
+            case FytCanbusCodes.CANBUS_HANDBRAKE:
+                // [type, status (0/1)]
+                this.hal.body.parkingBrake.value = !!codes[1];
+                break;
+
+            // Backlight / Night Mode check (Often sent as 0x14 or similar in some protocols, 
+            // but user spec mentions 'com.syu.ms.action.BACKLIGHT_ON'. 
+            // If we receive the broadcast via codes, we handle it here. 
+            // If it's a separate Action string, TwahhPlugin handles it via 'systemEvent' action field.
+        }
+    }
+
+    /**
+     * Handles data from the AIDL/Binder sniffer.
+     */
+    handleSnifferUpdate(data: any) {
+        const { desc, tx, hex } = data;
+        if (!hex) return;
+
+        const bytes = hex.split(' ').filter((b: string) => b.length > 0).map((b: string) => parseInt(b, 16));
+
+        // Mapping based on twahh_canbus_dump.txt analysis
+        if (desc === 'com.tw.carinfoservice.CarServiceAidl') {
+            if (tx === 4 && bytes.length >= 8) {
+                // Voltage is at offset 4 (as Float32 Little Endian)
+                // HEX: 00 00 00 00 [66 66 5E 41] -> 13.9
+                const buffer = new ArrayBuffer(4);
+                const view = new DataView(buffer);
+                view.setUint8(0, bytes[4]);
+                view.setUint8(1, bytes[5]);
+                view.setUint8(2, bytes[6]);
+                view.setUint8(3, bytes[7]);
+                const voltage = view.getFloat32(0, true);
+                if (voltage > 5 && voltage < 18) {
+                    this.hal.updateVoltage(voltage, true);
+                }
+            }
+            if (tx === 3 && (bytes.length === 4 || bytes.length >= 8)) {
+                // Speed: can be 4 bytes (Float32 direct) or 8 bytes (at offset 4)
+                const offset = bytes.length >= 8 ? 4 : 0;
+                const buffer = new ArrayBuffer(4);
+                const view = new DataView(buffer);
+                view.setUint8(0, bytes[offset]);
+                view.setUint8(1, bytes[offset + 1]);
+                view.setUint8(2, bytes[offset + 2]);
+                view.setUint8(3, bytes[offset + 3]);
+                const speed = view.getFloat32(0, true);
+                if (speed >= 0 && speed < 300) {
+                    this.hal.powertrain.speed.value = Math.round(speed);
+                }
+            }
+        }
     }
 }

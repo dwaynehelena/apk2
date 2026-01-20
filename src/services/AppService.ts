@@ -36,10 +36,27 @@ export class AppService {
         this.isLoading.value = false;
     }
 
+    // FYT Specific Intent Map
+    private fytIntentMap: Record<string, { activity?: string, action?: string }> = {
+        'com.syu.radio': { action: 'com.syu.radio.Launch' },
+        'com.syu.bt': { activity: 'com.syu.bt.PhoneActivity' }, // Default to Phone
+        'com.syu.music': { action: 'com.syu.music.Launch' },
+        'com.syu.video': { action: 'com.syu.video.Launch' },
+        'com.syu.settings': { activity: 'com.syu.settings.EqActivity' }, // Default to EQ for settings
+        'com.syu.av': { action: 'com.syu.av.Launch' },
+        'com.syu.canbus': { activity: 'com.syu.canbus.VehicleInfo' }, // Default to Vehicle Info
+    };
+
     async launchApp(pkg: string) {
         if ((window as any).Capacitor?.isNative) {
             const { Plugins } = (window as any).Capacitor;
-            await Plugins.TwahhPlugin.launchApp({ package: pkg });
+            const target = this.fytIntentMap[pkg] || {};
+
+            await Plugins.TwahhPlugin.launchApp({
+                package: pkg,
+                activity: target.activity,
+                action: target.action
+            });
         } else {
             console.log(`[Mock] Launching app: ${pkg}`);
             alert(`Launching ${pkg}`);

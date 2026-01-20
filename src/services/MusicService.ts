@@ -72,7 +72,19 @@ export class MusicService {
 
     // Retained for compatibility, but now alias to loadMockLibrary or specific scans
     async scanLibrary() {
-        if (this.hal.system.demoMode.value) {
+        if ((window as any).Capacitor?.isNative) {
+            try {
+                const { TwahhPlugin } = (window as any).Capacitor.Plugins;
+                const res = await TwahhPlugin.getAudioFiles();
+                if (res.songs && res.songs.length > 0) {
+                    this.playlist.value = res.songs;
+                } else {
+                    console.warn('[Music] No songs found on device.');
+                }
+            } catch (e) {
+                console.error('[Music] Scan failed', e);
+            }
+        } else if (this.hal.system.demoMode.value) {
             this.loadMockLibrary();
         }
     }

@@ -9,9 +9,9 @@ export class Vehicle3D {
     private carGroup: THREE.Group;
     private bodyMesh!: THREE.Mesh;
     private headlights: THREE.PointLight[] = [];
-    private particles: THREE.Points;
+    private particles!: THREE.Points;
     private particleCount = 100;
-    private particlePositions: Float32Array;
+    private particlePositions!: Float32Array;
 
     constructor(private container: HTMLElement, private hal: VehicleHAL) {
         this.scene = new THREE.Scene();
@@ -129,9 +129,26 @@ export class Vehicle3D {
         });
     }
 
-    private animate() {
-        requestAnimationFrame(() => this.animate());
+    private lastFrameTime = 0;
 
+    private animate(currTime: number = 0) {
+        requestAnimationFrame((t) => this.animate(t));
+
+        // Dynamic FPS Throttling
+        let targetFPS = 60;
+        if (!this.hal.system.canbusActive.value) targetFPS = 15; // Power Saving
+        else if (this.hal.powertrain.speed.value === 0) targetFPS = 30; // Idle
+
+        const interval = 1000 / targetFPS;
+        const delta = currTime - this.lastFrameTime;
+
+        if (delta > interval) {
+            this.lastFrameTime = currTime - (delta % interval);
+            this.renderFrame();
+        }
+    }
+
+    private renderFrame() {
         // Dynamic Rotation
         const speed = this.hal.powertrain.speed.value;
         this.carGroup.rotation.y += 0.005 + (speed / 300) * 0.05;
