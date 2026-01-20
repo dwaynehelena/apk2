@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "Checkpoint functionality to be implemented by AI agent during session."
+echo "For now, ensure .agent/epic-auto-mode is updated manually or by tool calls."

@@ -1,0 +1,12 @@
+{
+  "mode": "epic-auto",
+  "feature_dir": "specs/initial-app",
+  "epic_name": "initial-app",
+  "branch": "feat/initial-app",
+  "started_at": "2026-01-20T00:00:00Z",
+  "last_task": "",
+  "last_issue_id": "",
+  "total_tasks": 12,
+  "completed_before_compact": 0,
+  "compaction_count": 0
+}

@@ -1,0 +1,11 @@
+#!/bin/bash
+STATE_FILE=".agent/epic-auto-mode"
+
+if [ -f "$STATE_FILE" ]; then
+    echo "Resuming Epic Auto-Mode..."
+    cat "$STATE_FILE"
+    echo ""
+    echo "ACTION REQUIRED: Read spec.md, plan.md, and tasks.md immediately."
+else
+    echo "No active epic found."
+fi

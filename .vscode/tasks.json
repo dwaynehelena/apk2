@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Validate Project",
+      "type": "shell",
+      "command": "./scripts/validate.sh",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Recover Session",
+      "type": "shell",
+      "command": "./scripts/session-recover",
+      "presentation": {
+        "reveal": "always"
+      }
+    }
+  ]
+}
