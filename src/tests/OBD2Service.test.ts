@@ -12,18 +12,25 @@ describe('OBD2Service (TDD)', () => {
     });
 
     it('should start scanning and update HAL status', async () => {
+        // Mock fallback to ensure async path
+        (service as any).nativeFallbackMode = true;
         const scanPromise = service.scanForFaults();
         expect(hal.diagnostics.isScanning.value).toBe(true);
         await scanPromise;
         expect(hal.diagnostics.isScanning.value).toBe(false);
     });
 
-    it('should store detected DTCs in HAL', async () => {
-        // Force a mock response with a code
-        vi.spyOn(Math, 'random').mockReturnValue(0.1); // Trigger "has errors" path
+    it('should store detected DTCs in HAL (via Native Fallback)', async () => {
+        // Simulate Native Fallback Mode
+        (service as any).nativeFallbackMode = true;
+
+        // Simulate Low Battery to trigger a native DTC
+        hal.powertrain.batteryVoltage.value = 11.0;
+
         await service.scanForFaults();
+
         expect(hal.diagnostics.dtcs.value.length).toBeGreaterThan(0);
-        expect(hal.diagnostics.dtcs.value[0]).toContain('P0300');
+        expect(hal.diagnostics.dtcs.value[0]).toContain('U0001');
     });
 
     it('should clear DTCs in HAL', () => {

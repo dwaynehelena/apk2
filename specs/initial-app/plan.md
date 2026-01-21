@@ -19,7 +19,7 @@
 - AppService manages global state and initialization.
 
 ## API/Integration
-- OBD2 via Bluetooth/canbus
+- OBD2 via Bluetooth/allwier a133 canbus decoder canbus/tcpip via elm327
 - GPS via LocationService
 - Weather via WeatherService (API)
 - Music via MusicService (local or streaming)

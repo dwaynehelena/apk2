@@ -119,9 +119,29 @@ import { Dashboard } from './components/Dashboard';
 // });
 // document.body.appendChild(boot.element);
 
-// DIRECT DASHBOARD MOUNT
-app.innerHTML = '';
-new Dashboard(app, hal, obd2Service);
+// DIRECT DASHBOARD MOUNT (REMOVED: Now using Connectivity Guard)
+// NEW: Strict Connectivity Guard
+import { ConnectionPrompt } from './components/ConnectionPrompt';
+
+let currentView: any = null;
+const mountApp = () => {
+    console.log('[MAIN] Starting connectivity subscriber...');
+    hal.isConnected.subscribe((connected) => {
+        console.log(`[MAIN] VIEW UPDATE -> ${connected ? 'DASHBOARD' : 'CONNECTION_PROMPT'} (RealData: ${hal.isConnected.value})`);
+        app.innerHTML = '';
+
+        if (connected) {
+            console.log('[MAIN] Mounting Dashboard');
+            currentView = new Dashboard(app, hal, obd2Service);
+        } else {
+            console.log('[MAIN] Mounting ConnectionPrompt');
+            currentView = new ConnectionPrompt(hal, obd2Service);
+            app.appendChild(currentView.element);
+        }
+    });
+};
+
+mountApp();
 
 // Force Splash Screen Hide
 setTimeout(async () => {

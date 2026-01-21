@@ -32,16 +32,16 @@ export class VehicleHAL {
         speed: signal(0),
         gear: signal('N'),
         boost: signal(0),
-        oil: signal(90),
-        coolant: signal(85),
-        fuelLevel: signal(75), // %
-        batteryVoltage: signal(12.6), // Volts
-        load: signal(0), // %
-        throttle: signal(0), // %
-        intakeTemp: signal(0), // C
-        oilTemp: signal(0), // C
-        transTemp: signal(0), // C
-        fuelEco: signal(0)    // L/100km
+        oil: signal(0),
+        coolant: signal(0),
+        fuelLevel: signal(0),
+        batteryVoltage: signal(12.6),
+        load: signal(0),
+        throttle: signal(0),
+        intakeTemp: signal(0),
+        oilTemp: signal(0),
+        transTemp: signal(0),
+        fuelEco: signal(0)
     };
 
     // Body Signals
@@ -133,8 +133,8 @@ export class VehicleHAL {
 
     // System State
     system = {
-        demoMode: signal(false), // Defaults to FALSE for production
-        canbusActive: signal(false) // True if receiving data
+        canbusActive: signal(false), // True if receiving data
+        obdConnected: signal(false)  // True if ELM327 is linked
     };
 
     // Computed Advanced Logic
@@ -144,10 +144,18 @@ export class VehicleHAL {
     });
 
     private lastAidlUpdate: number = 0;
+    private lastRealDataReceived: number = 0;
 
     isAidlActive(): boolean {
         return (Date.now() - this.lastAidlUpdate) < 3000;
     }
+
+    isConnected = computed(() => {
+        // Connected if real vehicle data has been received in the last 5 seconds
+        // OR if the ELM327 has established a physical connection
+        const hasRecentData = (Date.now() - this.lastRealDataReceived) < 5000;
+        return hasRecentData || this.system.obdConnected.value;
+    });
 
     nightMode = computed(() => {
         // "Night Shift": Triggered by headlights
@@ -163,17 +171,13 @@ export class VehicleHAL {
         // Start listening to native events
         this.initFytBridge();
 
-        // Fallback to mock loop ONLY if dev/demo mode or no bridge
         // Start logic loop for timers/trips
         this.startLogicLoop();
-
-        // Fallback to mock loop ONLY if dev/demo mode or no bridge
-        // DISABLED FOR PRODUCTION: User requires Strict Native Mode
-        // this.startMockLoop();
     }
 
     // Called by Adapter when valid data arrives
     notifyCanbusActivity() {
+        this.lastRealDataReceived = Date.now();
         this.system.canbusActive.value = true;
         clearTimeout(this.canbusTimeout);
         this.canbusTimeout = setTimeout(() => {
@@ -201,6 +205,8 @@ export class VehicleHAL {
                 // We check for "codes" which we handle specifically
                 if (data.codes && Array.isArray(data.codes)) {
                     this.fytAdapter.handleUpdate(data.codes);
+                    // Update discovery timestamp but NOT necessarily real data yet
+                    // notifyCanbusActivity (called inside handleUpdate) will update real activity
                     this.lastAidlUpdate = Date.now();
                 }
             });
@@ -281,9 +287,8 @@ export class VehicleHAL {
 
     async scanDTCs() {
         this.diagnostics.isScanning.value = true;
-        await new Promise(r => setTimeout(r, 1500));
-        const demoCodes = ['P0300 (Random Misfire)', 'P0171 (System Too Lean)', 'B1202 (Fuel Sender Open)'];
-        this.diagnostics.dtcs.value = Math.random() > 0.4 ? [demoCodes[Math.floor(Math.random() * 3)]] : [];
+        // In native mode, this is handled by OBD2Service
+        // This HAL method should only be a placeholder or proxy
         this.diagnostics.isScanning.value = false;
     }
 
@@ -349,15 +354,7 @@ export class VehicleHAL {
                 this.motion.perf.timer0100.value = 0;
             }
 
-            // 3. Fuel Economy (Mock logic based on load)
-            const load = this.powertrain.load.value;
-            const rpm = this.powertrain.rpm.value;
-            if (speed > 10) {
-                const estL100 = (load * 0.15) + (rpm / 1000) * 2; // Very crude JK Wrangler style estimate
-                this.powertrain.fuelEco.value = Number(estL100.toFixed(1));
-            } else {
-                this.powertrain.fuelEco.value = 0;
-            }
+            // 3. Fuel Economy (No mock logic)
         }, 100);
     }
 }
@@ -455,11 +452,11 @@ class FytAdapter {
      * Handles data from the AIDL/Binder sniffer.
      * Maps transaction codes from com.tw.carinfoservice.CarServiceAidl to vehicle data.
      *
-     * Transaction Code Reference (discovered from logs):
+     * Transaction Code Reference (discovered from logs 2026-01-21):
      * TX=1,2: Error responses (UTF-16 "Attempt to invoke interface")
-     * TX=3: Speed (Float32, km/h)
-     * TX=4: Voltage (Float32, V)
-     * TX=5: Unknown (8 bytes, all zeros)
+     * TX=3: Status Int (4 bytes, usually 0x00000000)
+     * TX=4: **SPEED** Float32 at offset 4 (e.g., 13.9 km/h = 0x415E6666)
+     * TX=5: Engine running flag (byte at offset 4: 0=off, 1=on)
      * TX=6: Invalid marker (0xFFFFFFFF)
      * TX=7,8: Door/Climate status? (20 bytes, complex structure)
      * TX=9,10: Float -1.0 (uninitialized sensor?)
@@ -480,51 +477,44 @@ class FytAdapter {
             console.log(`[VehicleHAL] RX: DESC=${desc} TX=${tx} LEN=${bytes.length}`);
         }
 
-        // Mapping based on twahh_canbus_dump.txt analysis
-        if (desc === 'com.tw.carinfoservice.CarServiceAidl') {
-            // TX=4: Voltage (Float32 at offset 4)
+        // Discovery-based Mapping: Accept any descriptor reported by the native plugin
+        if (desc && desc.length > 0) {
+            // Log discovery of the descriptor if it's the first time we see it or in debug mode
+            if (tx === 4 && this.hal.system.canbusActive.value === false) {
+                console.log(`[VehicleHAL] Discovered and using AIDL service: ${desc}`);
+            }
+
+            // TX=4: SPEED (Float32 at offset 4) - CORRECTED MAPPING
+            // Log evidence: 66 66 5E 41 = 13.9 km/h, 9A 99 41 41 = 12.1 km/h
             if (tx === 4 && bytes.length >= 8) {
-                // HEX: 00 00 00 00 [66 66 5E 41] -> 13.9V
                 const buffer = new ArrayBuffer(4);
                 const view = new DataView(buffer);
                 view.setUint8(0, bytes[4]);
                 view.setUint8(1, bytes[5]);
                 view.setUint8(2, bytes[6]);
                 view.setUint8(3, bytes[7]);
-                const voltage = view.getFloat32(0, true);
-                if (voltage > 5 && voltage < 18) {
-                    this.hal.updateVoltage(voltage, true);
-                    console.log(`[VehicleHAL] TX=4: Voltage=${voltage.toFixed(2)}V`);
-                } else if (debugMode) {
-                    console.warn(`[VehicleHAL] TX=4: Invalid voltage=${voltage}`);
-                }
-            }
-
-            // TX=3: Speed (Float32)
-            if (tx === 3 && (bytes.length === 4 || bytes.length >= 8)) {
-                // Can be 4 bytes (Float32 direct) or 8 bytes (at offset 4)
-                const offset = bytes.length >= 8 ? 4 : 0;
-                const buffer = new ArrayBuffer(4);
-                const view = new DataView(buffer);
-                view.setUint8(0, bytes[offset]);
-                view.setUint8(1, bytes[offset + 1]);
-                view.setUint8(2, bytes[offset + 2]);
-                view.setUint8(3, bytes[offset + 3]);
                 const speed = view.getFloat32(0, true);
                 if (speed >= 0 && speed < 300) {
                     this.hal.powertrain.speed.value = Math.round(speed);
+                    this.hal.notifyCanbusActivity();
                     if (speed > 0) {
-                        console.log(`[VehicleHAL] TX=3: Speed=${Math.round(speed)} km/h`);
+                        console.log(`[VehicleHAL] TX=4: Speed=${speed.toFixed(1)} km/h`);
                     }
                 } else if (debugMode) {
-                    console.warn(`[VehicleHAL] TX=3: Invalid speed=${speed}`);
+                    console.warn(`[VehicleHAL] TX=4: Invalid speed=${speed}`);
                 }
+            }
+
+            // TX=3: Status Int (4 bytes) - NOT speed data
+            // Log shows this is always 00 00 00 00
+            if (tx === 3 && bytes.length === 4) {
+                // This appears to be a status/result code, not vehicle data
+                // Skip parsing - no useful data here
             }
 
             // TX=7,8: Door/Climate Status (20 bytes)
             // Pattern: [status][type 03][FF FF FF FF][00 00 00 00][00 00 00 00]
             if ((tx === 7 || tx === 8) && bytes.length >= 20) {
-                const status = bytes[0];
                 const type = bytes[4]; // Usually 0x03
 
                 // Check if this is door status (bit flags)
@@ -568,7 +558,6 @@ class FytAdapter {
             // TX=18: Gear/Mode Status (16 bytes)
             // Pattern: [status][02 00 00 00][00 00 00 00][00 00 00 00]
             if (tx === 18 && bytes.length >= 16) {
-                const status = bytes[0];
                 const mode = bytes[4]; // Usually 0x02
 
                 // Try to extract gear if mode indicates gear data
@@ -599,10 +588,6 @@ class FytAdapter {
             // Pattern: [status][03 00 00 00][00 00 80 BF][00 00 00 00][00 00 00 00]
             // Byte 8-11 appear to be Float32 -1.0
             if (tx === 20 && bytes.length >= 20) {
-                // This might contain parking brake, lights, or other body status
-                const status = bytes[0];
-                const type = bytes[4]; // Usually 0x03
-
                 // Extract Float32 at offset 8
                 const buffer = new ArrayBuffer(4);
                 const view = new DataView(buffer);
@@ -619,15 +604,23 @@ class FytAdapter {
                 }
             }
 
-            // TX=5: All zeros - might be RPM when engine off
+            // TX=5: Engine running flag (byte at offset 4)
+            // Log shows: 00 00 00 00 00/01 00 00 00
+            // Byte 4 = 0x00 when engine off, 0x01 when engine on
             if (tx === 5 && bytes.length >= 8) {
-                // Check if all bytes are zero
-                const allZeros = bytes.slice(4, 8).every((b: number) => b === 0);
-                if (allZeros) {
-                    // Engine is definitely off
+                const engineFlag = bytes[4];
+                if (engineFlag === 0) {
+                    // Engine off - set RPM to 0
                     this.hal.powertrain.rpm.value = 0;
+                } else if (engineFlag === 1) {
+                    // Engine running - set minimum idle RPM if RPM is 0
+                    if (this.hal.powertrain.rpm.value === 0) {
+                        this.hal.powertrain.rpm.value = 750; // Typical idle
+                    }
                 }
+                this.hal.notifyCanbusActivity();
             }
         }
+
     }
 }

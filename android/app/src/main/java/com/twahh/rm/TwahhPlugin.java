@@ -73,7 +73,11 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
     private TextToSpeech tts;
     private boolean ttsReady = false;
     private BluetoothSocket elm327BtSocket;
+    private java.net.Socket elm327WifiSocket;  // WiFi/TCP socket for ELM327
+    private java.io.OutputStream elm327WifiOut;
+    private java.io.InputStream elm327WifiIn;
     private boolean elm327Connected = false;
+    private String elm327Mode = "";  // "wifi" or "bluetooth"
     private boolean elm327Sniffing = false;
     private boolean hiworldSniffing = false;
     private java.io.FileWriter elmRawLog;
@@ -995,144 +999,79 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                         writeToSnifferLog(msg);
                         speakNow("Connected to " + name.getShortClassName());
                         
-                        // Probe AIDL with various interface descriptors
-                        // AIDL requires writeInterfaceToken before transact
-                        String pkg = name.getPackageName();
-                        String cls = name.getClassName();
+                        // 1. DYNAMIC DISCOVERY: Get interface descriptor directly from the binder
+                        String discoveredDescriptor = null;
+                        try {
+                            discoveredDescriptor = service.getInterfaceDescriptor();
+                            if (discoveredDescriptor != null && discoveredDescriptor.length() > 0) {
+                                writeToSnifferLog("[DISCOVERY] Found native descriptor: " + discoveredDescriptor);
+                            }
+                        } catch (Exception e) {
+                            writeToSnifferLog("[DISCOVERY] Binder error getting descriptor: " + e.getMessage());
+                        }
+
+                        // 2. Build prioritized probe list
+                        java.util.List<String> probeList = new java.util.ArrayList<>();
+                        if (discoveredDescriptor != null && !discoveredDescriptor.isEmpty()) {
+                            probeList.add(discoveredDescriptor);
+                        }
                         
-                        // Build list of possible interface names
-                        // PRIORITY: Known working interface from logs
-                        String[] possibleInterfaces = {
-                            "com.tw.carinfoservice.CarServiceAidl",  // DISCOVERED VIA LOGS - WORKING!
-                            pkg + ".CarServiceAidl",        // Generic pattern
-                            pkg + ".ICarService",           // com.tw.carinfoservice.ICarService
-                            pkg + ".ICarInfoService",       // com.tw.carinfoservice.ICarInfoService
-                            pkg + ".aidl.ICarService",      // com.tw.carinfoservice.aidl.ICarService
-                            cls.replace("Service", ""),     // com.tw.carinfoservice.Car (Stub pattern)
-                            "com.tw.car.ICarService",       // Cross-package
-                            "com.tw.ICarService",           // Short form
-                            "ICarService",                  // No package
-                            "com.dofun.carassistant.car.service.ICarService",
-                            "com.dofun.carassistant.ICarService",
-                            ""                               // Empty (raw transact)
+                        // Hardcoded fallbacks (for cases where descriptor is hidden or null)
+                        String pkg = name.getPackageName();
+                        String[] fallbacks = {
+                            "com.tw.carinfoservice.CarServiceAidl",
+                            "com.syu.ms.ISyuCarService",
+                            "com.syu.canbus.ICanbusService",
+                            "com.xyauto.canbus.ICanbusService",
+                            pkg + ".CarServiceAidl",
+                            pkg + ".ICarService",
+                            pkg + ".aidl.ICarService"
                         };
+                        for (String f : fallbacks) {
+                            if (!probeList.contains(f)) probeList.add(f);
+                        }
+                        probeList.add(""); // Raw transact
                         
                         writeToSnifferLog("PROBING SERVICE: " + name.flattenToString());
-                        writeToSnifferLog("Trying " + possibleInterfaces.length + " interface descriptors...");
+                        writeToSnifferLog("Trying " + probeList.size() + " interface descriptors (Discovered: " + 
+                                        (discoveredDescriptor != null ? discoveredDescriptor : "NONE") + ")...");
                         
-                        for (String iface : possibleInterfaces) {
+                        for (String iface : probeList) {
                             try {
                                 android.os.Parcel data = android.os.Parcel.obtain();
                                 android.os.Parcel reply = android.os.Parcel.obtain();
                                 
-                                // Write interface token if not empty
-                                if (iface.length() > 0) {
-                                    data.writeInterfaceToken(iface);
-                                }
-                                
-                                // Try first few transaction codes
-                                for (int code = 1; code <= 10; code++) {
+                                // Try transaction codes
+                                for (int code = 1; code <= 25; code++) {
                                     try {
-                                        reply.setDataPosition(0);
                                         data.setDataPosition(0);
                                         if (iface.length() > 0) {
                                             data.writeInterfaceToken(iface);
                                         }
+                                        reply.setDataPosition(0);
                                         
                                         boolean result = service.transact(code, data, reply, 0);
                                         
                                         if (reply.dataSize() > 0) {
                                             reply.setDataPosition(0);
-                                            
-                                            // Check for exception (first 4 bytes = -1 means error)
                                             int status = reply.readInt();
                                             
                                             if (status != -1) {
-                                                // SUCCESS! We found the right interface
-                                                reply.setDataPosition(0);
-                                                byte[] bytes = reply.marshall();
-                                                
-                                                StringBuilder hex = new StringBuilder();
-                                                for (int i = 0; i < Math.min(bytes.length, 64); i++) {
-                                                    hex.append(String.format("%02X ", bytes[i]));
-                                                }
-                                                
-                                                String logLine = "[AIDL SUCCESS!] IFACE=" + iface + " TX=" + code + 
-                                                                " STATUS=" + status + " SIZE=" + reply.dataSize() +
-                                                                "\n  HEX: " + hex.toString();
-                                                Log.d("CANBUS_DUMP", logLine);
-                                                writeToSnifferLog(logLine);
-                                                
-                                                // Try to parse common data structures
-                                                reply.setDataPosition(4); // Skip status
-                                                try {
-                                                    // Try reading as int
-                                                    int intVal = reply.readInt();
-                                                    writeToSnifferLog("  DATA INT[0]: " + intVal);
-                                                } catch (Exception ex) {}
-                                                
-                                                JSObject event = new JSObject();
-                                                event.put("type", "aidl_success");
-                                                event.put("interface", iface);
-                                                event.put("code", code);
-                                                event.put("status", status);
-                                                event.put("hex", hex.toString());
-                                                notifyListeners("canbusDump", event);
-                                            } else {
-                                                // Still an error, log it briefly
-                                                if (code == 1) {
-                                                    writeToSnifferLog("[AIDL FAIL] IFACE=" + iface + " (incorrect interface)");
-                                                }
-                                            }
-                                        }
-                                    } catch (android.os.RemoteException re) {
-                                        // Expected for unsupported codes
-                                    } catch (Exception e) {
-                                        // Other error
-                                    }
-                                }
-                                
-                                data.recycle();
-                                reply.recycle();
-                            } catch (Exception e) {
-                                writeToSnifferLog("[AIDL ERROR] IFACE=" + iface + " ERR=" + e.getMessage());
-                            }
-                        }
-                        
-                        // Also try to get the interface descriptor directly from the binder
-                        try {
-                            String descriptor = service.getInterfaceDescriptor();
-                            if (descriptor != null && descriptor.length() > 0) {
-                                writeToSnifferLog("[BINDER] getInterfaceDescriptor() = " + descriptor);
-                                
-                                // Now try transact with the real descriptor
-                                android.os.Parcel data = android.os.Parcel.obtain();
-                                android.os.Parcel reply = android.os.Parcel.obtain();
-                                data.writeInterfaceToken(descriptor);
-                                
-                                for (int code = 1; code <= 20; code++) {
-                                    try {
-                                        data.setDataPosition(0);
-                                        data.writeInterfaceToken(descriptor);
-                                        reply.setDataPosition(0);
-                                        
-                                        service.transact(code, data, reply, 0);
-                                        if (reply.dataSize() > 0) {
-                                            reply.setDataPosition(0);
-                                            int status = reply.readInt();
-                                            if (status != -1) {
+                                                // SUCCESS!
                                                 byte[] bytes = reply.marshall();
                                                 StringBuilder hex = new StringBuilder();
                                                 for (int i = 0; i < Math.min(bytes.length, 64); i++) {
                                                     hex.append(String.format("%02X ", bytes[i]));
                                                 }
-                                                String logLine = "[AIDL REAL!] DESC=" + descriptor + " TX=" + code + 
+                                                
+                                                String mode = (iface.equals(discoveredDescriptor)) ? "AIDL_DYNAMIC" : "AIDL_FALLBACK";
+                                                String logLine = "[" + mode + "] IFACE=" + iface + " TX=" + code + 
                                                                 " SIZE=" + reply.dataSize() + "\n  HEX: " + hex.toString();
                                                 writeToSnifferLog(logLine);
                                                 
                                                 JSObject aidlEvent = new JSObject();
-                                                aidlEvent.put("type", "aidl_real");
-                                                aidlEvent.put("desc", descriptor);
+                                                aidlEvent.put("type", (mode.equals("AIDL_DYNAMIC") ? "aidl_real" : "aidl_success"));
+                                                aidlEvent.put("desc", iface);
                                                 aidlEvent.put("tx", code);
                                                 aidlEvent.put("hex", hex.toString());
                                                 notifyListeners("canbusDump", aidlEvent);
@@ -1140,12 +1079,9 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                                         }
                                     } catch (Exception e) {}
                                 }
-                                
                                 data.recycle();
                                 reply.recycle();
-                            }
-                        } catch (Exception e) {
-                            writeToSnifferLog("[BINDER] getInterfaceDescriptor failed: " + e.getMessage());
+                            } catch (Exception e) {}
                         }
                     }
                     
@@ -1529,9 +1465,72 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
     
     @PluginMethod
     public void connectELM327(PluginCall call) {
+        String mode = call.getString("mode", "bluetooth");
+        
+        if ("wifi".equals(mode)) {
+            // WiFi/TCP connection
+            String host = call.getString("host", "192.168.0.10");
+            int port = call.getInt("port", 35000);
+            connectWifiELM327(call, host, port);
+        } else {
+            // Bluetooth connection (existing code)
+            connectBluetoothELM327(call);
+        }
+    }
+    
+    private void connectWifiELM327(PluginCall call, String host, int port) {
+        addLog("Initiating WiFi ELM327 Connection to " + host + ":" + port + "...");
+        speakNow("Connecting to E L M 3 2 7 via WiFi");
+        
+        new Thread(() -> {
+            try {
+                // Close any existing connection
+                if (elm327WifiSocket != null && !elm327WifiSocket.isClosed()) {
+                    elm327WifiSocket.close();
+                }
+                
+                // Create TCP socket with timeout
+                elm327WifiSocket = new java.net.Socket();
+                elm327WifiSocket.connect(new java.net.InetSocketAddress(host, port), 5000);
+                elm327WifiSocket.setSoTimeout(3000);
+                
+                elm327WifiOut = elm327WifiSocket.getOutputStream();
+                elm327WifiIn = elm327WifiSocket.getInputStream();
+                
+                elm327Connected = true;
+                elm327Mode = "wifi";
+                
+                // Initialize ELM protocol
+                initELMProtocol(elm327WifiOut);
+                addLog("WiFi Socket CONNECTED to " + host + ":" + port);
+                speakNow("WiFi E L M 3 2 7 connected");
+                
+                // Start reader thread
+                startObdReaderThread(elm327WifiIn);
+                
+                getActivity().runOnUiThread(() -> {
+                    JSObject ret = new JSObject();
+                    ret.put("connected", true);
+                    ret.put("mode", "wifi");
+                    ret.put("host", host);
+                    ret.put("port", port);
+                    call.resolve(ret);
+                });
+                
+            } catch (Exception e) {
+                addLog("WiFi Connect Error: " + e.getMessage());
+                Log.e("TwahhPlugin", "WiFi ELM327 connect error: " + e.getMessage());
+                speakNow("WiFi E L M 3 2 7 connection failed");
+                elm327Connected = false;
+                elm327Mode = "";
+                getActivity().runOnUiThread(() -> call.reject("WiFi connection failed: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    private void connectBluetoothELM327(PluginCall call) {
         // Enforce Bluetooth Mode
         addLog("Initiating Bluetooth ELM327 Connection...");
-        speakNow("Connecting to E L M 3 2 7 via Bluetooth");
         
         new Thread(() -> {
             try {
@@ -1600,6 +1599,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                 }
 
                 elm327Connected = true;
+                elm327Mode = "bluetooth";
                 
                 OutputStream out = elm327BtSocket.getOutputStream();
                 initELMProtocol(out);

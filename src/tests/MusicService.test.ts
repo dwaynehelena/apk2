@@ -1,24 +1,33 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MusicService } from '../services/MusicService';
-import { VehicleHAL } from '../services/VehicleHAL';
+import { MusicService, Track } from '../services/MusicService';
+import { effect } from '@preact/signals-core';
 
 describe('MusicService', () => {
     let music: MusicService;
-    let hal: VehicleHAL;
+    let hal: any;
 
     beforeEach(() => {
-        // Mock global Audio
-        global.Audio = class {
-            addEventListener = vi.fn();
-            removeEventListener = vi.fn();
-            play = vi.fn().mockResolvedValue(undefined);
-            pause = vi.fn();
-            src = '';
-            currentTime = 0;
-            duration = 0;
-        } as any;
+        // Mock HAL
+        hal = {
+            system: { demoMode: { value: false } },
+            media: { isPlaying: { value: false }, nowPlaying: { value: '' } }
+        };
 
-        hal = new VehicleHAL();
+        // Mock Capacitor
+        (window as any).Capacitor = {
+            isNative: true,
+            Plugins: {
+                TwahhPlugin: {
+                    getAudioFiles: vi.fn().mockResolvedValue({
+                        songs: [
+                            { id: '1', title: 'Test Song 1', artist: 'Artist 1', url: 'file://1.mp3', duration: 100 },
+                            { id: '2', title: 'Test Song 2', artist: 'Artist 2', url: 'file://2.mp3', duration: 200 }
+                        ]
+                    })
+                }
+            }
+        };
+
         music = new MusicService(hal);
     });
 
@@ -27,21 +36,13 @@ describe('MusicService', () => {
         expect(music.isPlaying.value).toBe(false);
     });
 
-    it('should scan for tracks in Demo Mode', async () => {
-        hal.system.demoMode.value = true;
+    it('should scan for tracks (via mock native plugin)', async () => {
         await music.scanLibrary();
         expect(music.playlist.value.length).toBeGreaterThan(0);
-        expect(music.playlist.value[0]).toHaveProperty('title');
+        expect(music.playlist.value[0].title).toBe('Test Song 1');
     });
 
-    it('should NOT load mock tracks in Real Mode', async () => {
-        hal.system.demoMode.value = false;
-        await music.scanLibrary();
-        expect(music.playlist.value).toHaveLength(0);
-    });
-
-    it('should play a track (Demo Mode)', async () => {
-        hal.system.demoMode.value = true;
+    it('should play a track', async () => {
         await music.scanLibrary();
         const track = music.playlist.value[0];
 
@@ -51,23 +52,18 @@ describe('MusicService', () => {
         expect(music.isPlaying.value).toBe(true);
     });
 
-    it('should sync with HAL in Real Mode', () => {
-        hal.system.demoMode.value = false;
-        hal.media.nowPlaying.value = 'Daft Punk - One More Time';
-        hal.media.isPlaying.value = true;
+    it('should toggle play/pause', async () => {
+        await music.scanLibrary();
+        music.playTrack(music.playlist.value[0]);
 
-        // Effect needs a tick to propagate? Preact signals are usually synchronous for .value access but effects run after.
-        // We might need to wait or rely on signal synchronization. 
-        // In simple test env, effects might not flush immediately without manual tick if not configured.
-        // However, standard Preact signals-core usually flushes microtasks.
+        music.togglePlay();
+        expect(music.isPlaying.value).toBe(false);
 
-        // Let's assume sync for now or we might need to flush.
-        // Actually, we can just check if values propagated.
-        // *Self-correction*: effect runs synchronously on definition, but updates might be batched.
+        music.togglePlay();
+        expect(music.isPlaying.value).toBe(true);
     });
 
-    it('should advance to next track (Demo Mode)', async () => {
-        hal.system.demoMode.value = true;
+    it('should advance to next track', async () => {
         await music.scanLibrary();
         const first = music.playlist.value[0];
         const second = music.playlist.value[1];

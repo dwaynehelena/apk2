@@ -1,0 +1,36 @@
+[00:34:55.577] INFO Accessing Kernel...
+[00:34:55.590] INFO Plat: android (Native: true)
+[00:34:55.826] WARN HW: Allwinner A133
+[00:34:55.831] INFO ⏳ LOG TIMER STARTED (60s)
+[00:34:55.847] WARN --- ELM327 DIAGNOSTICS ---
+[00:34:55.861] INFO Checking ELM327 Status...
+[00:34:55.866] WARN ELM327 Disconnected. Attempting Uplink...
+[00:34:55.876] FAIL ❌ ELM327 CONNECTION FAILED
+[00:34:55.881] WARN --- SCANNING CANBUS APPS ---
+[00:34:56.139] INFO Found 10 potential CANbus apps:
+[00:34:56.142] OK     [car] com.tw.carinfoservice
+[00:34:56.146] OK     [car] cn.cardoor.zt360
+[00:34:56.149] OK     [car] com.wow.carlauncher.driver.sys.lanseobd
+[00:34:56.151] OK     [car] com.tw.carchoose
+[00:34:56.154] OK     [car] cn.cardoor.d3dview
+[00:34:56.156] OK     [car] com.dofun.carassistant.car
+[00:34:56.158] OK     [car] com.tw.carapps
+[00:34:56.161] OK     [car] com.tw.car
+[00:34:56.165] OK     [car] com.wow.carlauncher.driver.ls.jj
+[00:34:56.167] OK     [car] com.dofun.carsetting
+[00:34:56.169] WARN --- PROBING PROVIDERS ---
+[00:34:56.195] WARN [DENIED] content://com.tw.carinfoservice
+[00:34:56.199] WARN [DENIED] content://com.tw.carinfoservice/carinfo
+[00:34:56.202] WARN [DENIED] content://com.tw.carinfoservice.provider
+[00:34:56.205] WARN [DENIED] content://com.tw.car
+[00:34:56.209] WARN [DENIED] content://com.tw.car/canbus
+[00:34:56.212] WARN [DENIED] content://com.tw.car.provider
+[00:34:56.216] WARN [DENIED] content://com.dofun.carassistant.car
+[00:34:56.220] OK   [ACCESSIBLE] content://settings/system
+[00:34:58.383] INFO Saving dump...
+[00:34:58.406] OK   Logs written to /storage/emulated/0/Android/data/com.twahh.rm/files/TWLogs/Boot/twahh_boot_log.txt
+[00:35:02.114] WARN --- STARTING SNIFFER ---
+[00:35:02.388] OK   📡 SNIFFER STARTED
+[00:35:02.400] INFO Status: running
+[00:35:02.412] INFO Log File: /storage/emulated/0/twahh_canbus_dump.txt
+[00:35:20.935] INFO Saving dump...

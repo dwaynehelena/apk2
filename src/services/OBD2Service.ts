@@ -3,14 +3,13 @@ import { VehicleHAL } from './VehicleHAL';
 export class OBD2Service {
     private hal: VehicleHAL;
     private lastDataTimestamp: number = 0;
-    private demoFaults = [
-        'P0300: Random or Multiple Cylinder Misfire Detected',
-        'P0171: System Too Lean (Bank 1)',
-        'P0420: Catalyst System Efficiency Below Threshold',
-        'B1202: Fuel Sender Circuit Open'
-    ];
-
-    private isConnected = false;
+    private _isConnected = false;
+    private get isConnected() { return this._isConnected; }
+    private set isConnected(val: boolean) {
+        this._isConnected = val;
+        this.hal.system.obdConnected.value = val;
+        if (val) this.hal.notifyCanbusActivity(); // Also trigger activity
+    }
     private pollInterval: any;
     private nativeFallbackMode = false; // True when using AIDL instead of ELM327
 
@@ -77,7 +76,7 @@ export class OBD2Service {
             // Setup Listeners
             TwahhPlugin.addListener('obdData', (res: any) => this.handleData(res.data));
             TwahhPlugin.addListener('obdStatus', (res: any) => {
-                console.log('[OBD2] Status:', res.status);
+                console.log('[OBD2] Status Change:', res.status);
                 this.isConnected = res.status === 'connected';
                 if (!this.isConnected) clearInterval(this.pollInterval);
             });
@@ -285,12 +284,8 @@ export class OBD2Service {
                     this.hal.diagnostics.dtcs.value.push('P0217: Engine Coolant Over Temperature');
                 }
             } else {
-                // Demo/test mode: simulate scan with mock data
-                await new Promise(r => setTimeout(r, 100));
-                if (Math.random() < 0.6) {
-                    const randomFault = this.demoFaults[Math.floor(Math.random() * this.demoFaults.length)];
-                    this.hal.diagnostics.dtcs.value = [randomFault];
-                }
+                // No connection - do nothing
+                console.log('[OBD2] No connection for DTC scan');
             }
         } catch (e) {
             console.error('[OBD2] Scan failed', e);
@@ -341,10 +336,8 @@ export class OBD2Service {
     getConnectionStatus(): string {
         if (this.isConnected) {
             return 'ELM327 Connected';
-        } else if (this.nativeFallbackMode) {
-            return 'Native CANbus Active';
         } else {
-            return 'Disconnected (Demo Mode)';
+            return 'Disconnected';
         }
     }
 }

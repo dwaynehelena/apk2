@@ -31,44 +31,31 @@ export class MusicService {
         });
 
         // Mode Switching
-        effect(() => {
-            if (this.hal.system.demoMode.value) {
-                this.loadMockLibrary();
-            } else {
-                this.playlist.value = [];
-                // Allow current track to persist if it came from HAL, but clear playlist
-            }
-        });
+        // Mode Switching - Removed Demo Mode
+        // Only relying on real HAL data now
 
         // Real Mode: Sync from HAL
+        // Sync from HAL
         effect(() => {
-            if (!this.hal.system.demoMode.value) {
-                this.isPlaying.value = this.hal.media.isPlaying.value;
+            this.isPlaying.value = this.hal.media.isPlaying.value;
 
-                // Construct track info from HAL string (e.g. "FM 88.5" or "Artist - Title")
-                const raw = this.hal.media.nowPlaying.value;
-                if (raw) {
-                    // Simple heuristic: if it contains " - ", split it. Else assume it's a station name.
-                    const parts = raw.split(' - ');
-                    this.currentTrack.value = {
-                        id: 'system',
-                        title: parts[1] || raw,
-                        artist: parts[1] ? parts[0] : 'System Audio',
-                        url: '',
-                        duration: 0
-                    };
-                }
+            // Construct track info from HAL string (e.g. "FM 88.5" or "Artist - Title")
+            const raw = this.hal.media.nowPlaying.value;
+            if (raw) {
+                // Simple heuristic: if it contains " - ", split it. Else assume it's a station name.
+                const parts = raw.split(' - ');
+                this.currentTrack.value = {
+                    id: 'system',
+                    title: parts[1] || raw,
+                    artist: parts[1] ? parts[0] : 'System Audio',
+                    url: '',
+                    duration: 0
+                };
             }
         });
     }
 
-    private loadMockLibrary() {
-        this.playlist.value = [
-            { id: '1', title: 'Nightcall', artist: 'Kavinsky', url: '', duration: 258 },
-            { id: '2', title: 'Midnight City', artist: 'M83', url: '', duration: 243 },
-            { id: '3', title: 'Resonance', artist: 'Home', url: '', duration: 212 },
-        ];
-    }
+    // Mock Library Removed
 
     // Retained for compatibility, but now alias to loadMockLibrary or specific scans
     async scanLibrary() {
@@ -84,8 +71,6 @@ export class MusicService {
             } catch (e) {
                 console.error('[Music] Scan failed', e);
             }
-        } else if (this.hal.system.demoMode.value) {
-            this.loadMockLibrary();
         }
     }
 
