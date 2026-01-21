@@ -1502,33 +1502,41 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
     private void connectWifiELM327(PluginCall call, String host, int port) {
         addLog("Initiating WiFi ELM327 Connection to " + host + ":" + port + "...");
         speakNow("Connecting to E L M 3 2 7 via WiFi");
-        
+
         new Thread(() -> {
             try {
-                // Close any existing connection
+                // Close any existing connection first
                 if (elm327WifiSocket != null && !elm327WifiSocket.isClosed()) {
+                    addLog("Closing existing WiFi socket...");
                     elm327WifiSocket.close();
+                    elm327WifiSocket = null;
+                    elm327WifiIn = null;
+                    elm327WifiOut = null;
                 }
-                
-                // Create TCP socket with timeout
+
+                addLog("Creating TCP socket to " + host + ":" + port);
+
+                // Create TCP socket with 10 second connection timeout
                 elm327WifiSocket = new java.net.Socket();
-                elm327WifiSocket.connect(new java.net.InetSocketAddress(host, port), 5000);
-                elm327WifiSocket.setSoTimeout(3000);
-                
+                elm327WifiSocket.connect(new java.net.InetSocketAddress(host, port), 10000);
+                elm327WifiSocket.setSoTimeout(5000);  // 5 second read timeout
+
+                addLog("TCP socket connected, getting streams...");
                 elm327WifiOut = elm327WifiSocket.getOutputStream();
                 elm327WifiIn = elm327WifiSocket.getInputStream();
-                
+
                 elm327Connected = true;
                 elm327Mode = "wifi";
-                
+
                 // Initialize ELM protocol
+                addLog("Initializing ELM327 protocol...");
                 initELMProtocol(elm327WifiOut);
                 addLog("WiFi Socket CONNECTED to " + host + ":" + port);
                 speakNow("WiFi E L M 3 2 7 connected");
-                
+
                 // Start reader thread
                 startObdReaderThread(elm327WifiIn);
-                
+
                 getActivity().runOnUiThread(() -> {
                     JSObject ret = new JSObject();
                     ret.put("connected", true);
@@ -1537,9 +1545,30 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                     ret.put("port", port);
                     call.resolve(ret);
                 });
-                
+
+            } catch (java.net.SocketTimeoutException e) {
+                addLog("WiFi Connect TIMEOUT: Device at " + host + ":" + port + " not responding");
+                Log.e("TwahhPlugin", "WiFi ELM327 timeout: " + e.getMessage());
+                speakNow("WiFi connection timed out");
+                elm327Connected = false;
+                elm327Mode = "";
+                getActivity().runOnUiThread(() -> call.reject("Connection timeout - check IP address and ensure ELM327 WiFi is enabled"));
+            } catch (java.net.ConnectException e) {
+                addLog("WiFi Connect REFUSED: " + e.getMessage());
+                Log.e("TwahhPlugin", "WiFi ELM327 refused: " + e.getMessage());
+                speakNow("WiFi connection refused");
+                elm327Connected = false;
+                elm327Mode = "";
+                getActivity().runOnUiThread(() -> call.reject("Connection refused - wrong port or device not ready"));
+            } catch (java.net.UnknownHostException e) {
+                addLog("WiFi Connect INVALID HOST: " + host);
+                Log.e("TwahhPlugin", "WiFi ELM327 unknown host: " + e.getMessage());
+                speakNow("Invalid IP address");
+                elm327Connected = false;
+                elm327Mode = "";
+                getActivity().runOnUiThread(() -> call.reject("Invalid IP address: " + host));
             } catch (Exception e) {
-                addLog("WiFi Connect Error: " + e.getMessage());
+                addLog("WiFi Connect Error: " + e.getClass().getSimpleName() + " - " + e.getMessage());
                 Log.e("TwahhPlugin", "WiFi ELM327 connect error: " + e.getMessage());
                 speakNow("WiFi E L M 3 2 7 connection failed");
                 elm327Connected = false;
@@ -1577,16 +1606,27 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                     addLog("Using provided MAC: " + providedMac);
                 } else {
                     addLog("Scanning paired devices...");
+                    // Extended list of known ELM327/OBD device name patterns
+                    String[] obdPatterns = {
+                        "OBD", "ELM", "OBDII", "OBD2", "OBD-II",
+                        "V-LINK", "VLINK", "VGATE", "VEEPEAK",
+                        "BAFX", "KONNWEI", "ANCEL", "AUTOPHIX",
+                        "SCAN", "DIAG", "CAR", "AUTO",
+                        "HC-05", "HC-06", "SPP"  // Generic BT serial modules often used
+                    };
                     for (BluetoothDevice paired : btAdapter.getBondedDevices()) {
                         String name = paired.getName();
                         addLog("Paired: " + name + " [" + paired.getAddress() + "]");
                         if (name != null) {
                             String upperName = name.toUpperCase();
-                            if (upperName.contains("OBD") || upperName.contains("ELM") || upperName.contains("V-LINK") || upperName.contains("OBDII")) {
-                                device = paired;
-                                addLog("MATCH FOUND: " + name);
-                                break;
+                            for (String pattern : obdPatterns) {
+                                if (upperName.contains(pattern)) {
+                                    device = paired;
+                                    addLog("MATCH FOUND: " + name + " (pattern: " + pattern + ")");
+                                    break;
+                                }
                             }
+                            if (device != null) break;
                         }
                     }
                 }
@@ -1700,11 +1740,15 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
         OutputStream out = null;
         try {
             if (elm327Connected) {
-                if (elm327BtSocket != null) {
-                     out = elm327BtSocket.getOutputStream();
+                // Use the correct output stream based on connection mode
+                if ("wifi".equals(elm327Mode) && elm327WifiOut != null) {
+                    out = elm327WifiOut;
+                } else if ("bluetooth".equals(elm327Mode) && elm327BtSocket != null) {
+                    out = elm327BtSocket.getOutputStream();
                 }
             }
             if (out == null) {
+                addLog("sendOBD: No output stream available (mode=" + elm327Mode + ", connected=" + elm327Connected + ")");
                 call.reject("Not Connected");
                 return;
             }
@@ -1724,16 +1768,33 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
 
     @PluginMethod
     public void disconnectELM327(PluginCall call) {
-        isObdReaderRunning = false; 
+        isObdReaderRunning = false;
         try {
+            // Close Bluetooth socket if open
             if (elm327BtSocket != null) {
                 elm327BtSocket.close();
                 elm327BtSocket = null;
+                addLog("Bluetooth socket closed.");
+            }
+            // Close WiFi socket and streams if open
+            if (elm327WifiIn != null) {
+                try { elm327WifiIn.close(); } catch (Exception ignored) {}
+                elm327WifiIn = null;
+            }
+            if (elm327WifiOut != null) {
+                try { elm327WifiOut.close(); } catch (Exception ignored) {}
+                elm327WifiOut = null;
+            }
+            if (elm327WifiSocket != null) {
+                try { elm327WifiSocket.close(); } catch (Exception ignored) {}
+                elm327WifiSocket = null;
+                addLog("WiFi socket closed.");
             }
             elm327Connected = false;
+            elm327Mode = "";
             speakNow("E L M 3 2 7 disconnected");
             addLog("Disconnected.");
-            
+
             JSObject ret = new JSObject();
             ret.put("disconnected", true);
             call.resolve(ret);
