@@ -1,0 +1,21 @@
+{
+  "aidl_interface": true,
+  "permissions": {
+    "Storage": true,
+    "Bluetooth": true,
+    "System": true,
+    "CANbus Custom": true
+  },
+  "transaction_mapping": {
+    "TX=3": true,
+    "TX=4": true,
+    "TX=5": true,
+    "TX=7,8": true,
+    "TX=9": true,
+    "TX=10": true,
+    "TX=18": true,
+    "TX=20": true
+  },
+  "native_fallback": true,
+  "overall": true
+}

@@ -14,7 +14,13 @@ JDK_URL = "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-
 SDK_TOOLS_URL = "https://dl.google.com/android/repository/commandlinetools-mac-9477386_latest.zip"
 
 BUILD_DIR = os.path.abspath("build_system")
-JAVA_HOME = os.path.join(BUILD_DIR, "jdk-17.0.9+9/Contents/Home")
+
+# Use Homebrew Java if available
+if os.path.exists("/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"):
+    JAVA_HOME = "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
+else:
+    JAVA_HOME = os.path.join(BUILD_DIR, "jdk-17.0.9+9/Contents/Home")
+
 ANDROID_HOME = os.path.join(BUILD_DIR, "android-sdk")
 STATUS_FILE = "build_status.json"
 

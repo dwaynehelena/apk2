@@ -453,6 +453,20 @@ class FytAdapter {
 
     /**
      * Handles data from the AIDL/Binder sniffer.
+     * Maps transaction codes from com.tw.carinfoservice.CarServiceAidl to vehicle data.
+     *
+     * Transaction Code Reference (discovered from logs):
+     * TX=1,2: Error responses (UTF-16 "Attempt to invoke interface")
+     * TX=3: Speed (Float32, km/h)
+     * TX=4: Voltage (Float32, V)
+     * TX=5: Unknown (8 bytes, all zeros)
+     * TX=6: Invalid marker (0xFFFFFFFF)
+     * TX=7,8: Door/Climate status? (20 bytes, complex structure)
+     * TX=9,10: Float -1.0 (uninitialized sensor?)
+     * TX=11-17: Invalid markers (0xFFFFFFFF)
+     * TX=18: Gear/Mode? (16 bytes)
+     * TX=19: Invalid marker
+     * TX=20: Complex structure (20 bytes)
      */
     handleSnifferUpdate(data: any) {
         const { desc, tx, hex } = data;
@@ -460,11 +474,17 @@ class FytAdapter {
 
         const bytes = hex.split(' ').filter((b: string) => b.length > 0).map((b: string) => parseInt(b, 16));
 
+        // Debug logging
+        const debugMode = false; // Set to true for verbose logging
+        if (debugMode) {
+            console.log(`[VehicleHAL] RX: DESC=${desc} TX=${tx} LEN=${bytes.length}`);
+        }
+
         // Mapping based on twahh_canbus_dump.txt analysis
         if (desc === 'com.tw.carinfoservice.CarServiceAidl') {
+            // TX=4: Voltage (Float32 at offset 4)
             if (tx === 4 && bytes.length >= 8) {
-                // Voltage is at offset 4 (as Float32 Little Endian)
-                // HEX: 00 00 00 00 [66 66 5E 41] -> 13.9
+                // HEX: 00 00 00 00 [66 66 5E 41] -> 13.9V
                 const buffer = new ArrayBuffer(4);
                 const view = new DataView(buffer);
                 view.setUint8(0, bytes[4]);
@@ -474,10 +494,15 @@ class FytAdapter {
                 const voltage = view.getFloat32(0, true);
                 if (voltage > 5 && voltage < 18) {
                     this.hal.updateVoltage(voltage, true);
+                    console.log(`[VehicleHAL] TX=4: Voltage=${voltage.toFixed(2)}V`);
+                } else if (debugMode) {
+                    console.warn(`[VehicleHAL] TX=4: Invalid voltage=${voltage}`);
                 }
             }
+
+            // TX=3: Speed (Float32)
             if (tx === 3 && (bytes.length === 4 || bytes.length >= 8)) {
-                // Speed: can be 4 bytes (Float32 direct) or 8 bytes (at offset 4)
+                // Can be 4 bytes (Float32 direct) or 8 bytes (at offset 4)
                 const offset = bytes.length >= 8 ? 4 : 0;
                 const buffer = new ArrayBuffer(4);
                 const view = new DataView(buffer);
@@ -488,6 +513,119 @@ class FytAdapter {
                 const speed = view.getFloat32(0, true);
                 if (speed >= 0 && speed < 300) {
                     this.hal.powertrain.speed.value = Math.round(speed);
+                    if (speed > 0) {
+                        console.log(`[VehicleHAL] TX=3: Speed=${Math.round(speed)} km/h`);
+                    }
+                } else if (debugMode) {
+                    console.warn(`[VehicleHAL] TX=3: Invalid speed=${speed}`);
+                }
+            }
+
+            // TX=7,8: Door/Climate Status (20 bytes)
+            // Pattern: [status][type 03][FF FF FF FF][00 00 00 00][00 00 00 00]
+            if ((tx === 7 || tx === 8) && bytes.length >= 20) {
+                const status = bytes[0];
+                const type = bytes[4]; // Usually 0x03
+
+                // Check if this is door status (bit flags)
+                if (type === 0x03) {
+                    // Parse door bits if available
+                    // This is speculative - needs real-world testing
+                    const doorBits = bytes[8];
+                    if (doorBits !== 0xFF) {
+                        this.hal.body.doors.fl.value = !!(doorBits & 0x01);
+                        this.hal.body.doors.fr.value = !!(doorBits & 0x02);
+                        this.hal.body.doors.rl.value = !!(doorBits & 0x04);
+                        this.hal.body.doors.rr.value = !!(doorBits & 0x08);
+                    }
+                }
+            }
+
+            // TX=9,10: Float values (often -1.0 = uninitialized)
+            if ((tx === 9 || tx === 10) && bytes.length >= 8) {
+                const buffer = new ArrayBuffer(4);
+                const view = new DataView(buffer);
+                view.setUint8(0, bytes[4]);
+                view.setUint8(1, bytes[5]);
+                view.setUint8(2, bytes[6]);
+                view.setUint8(3, bytes[7]);
+                const floatVal = view.getFloat32(0, true);
+
+                // Only use if not -1.0 (uninitialized marker)
+                if (floatVal > -0.9 && floatVal < -1.1) {
+                    // This is the uninitialized marker, ignore
+                } else if (floatVal >= 0) {
+                    // Could be coolant temp, oil temp, etc.
+                    // TX=9 -> Coolant? TX=10 -> Oil?
+                    if (tx === 9 && floatVal > 0 && floatVal < 150) {
+                        this.hal.powertrain.coolant.value = Math.round(floatVal);
+                    } else if (tx === 10 && floatVal > 0 && floatVal < 150) {
+                        this.hal.powertrain.oilTemp.value = Math.round(floatVal);
+                    }
+                }
+            }
+
+            // TX=18: Gear/Mode Status (16 bytes)
+            // Pattern: [status][02 00 00 00][00 00 00 00][00 00 00 00]
+            if (tx === 18 && bytes.length >= 16) {
+                const status = bytes[0];
+                const mode = bytes[4]; // Usually 0x02
+
+                // Try to extract gear if mode indicates gear data
+                if (mode === 0x02) {
+                    const gearByte = bytes[8];
+                    if (gearByte !== 0x00 && gearByte !== 0xFF) {
+                        // Map gear byte to gear string
+                        const gearMap: { [key: number]: string } = {
+                            0x00: 'P',
+                            0x01: 'R',
+                            0x02: 'N',
+                            0x03: 'D',
+                            0x04: '1',
+                            0x05: '2',
+                            0x06: '3',
+                            0x07: '4',
+                            0x08: '5',
+                            0x09: '6'
+                        };
+                        if (gearMap[gearByte]) {
+                            this.hal.powertrain.gear.value = gearMap[gearByte];
+                        }
+                    }
+                }
+            }
+
+            // TX=20: Complex Structure (20 bytes)
+            // Pattern: [status][03 00 00 00][00 00 80 BF][00 00 00 00][00 00 00 00]
+            // Byte 8-11 appear to be Float32 -1.0
+            if (tx === 20 && bytes.length >= 20) {
+                // This might contain parking brake, lights, or other body status
+                const status = bytes[0];
+                const type = bytes[4]; // Usually 0x03
+
+                // Extract Float32 at offset 8
+                const buffer = new ArrayBuffer(4);
+                const view = new DataView(buffer);
+                view.setUint8(0, bytes[8]);
+                view.setUint8(1, bytes[9]);
+                view.setUint8(2, bytes[10]);
+                view.setUint8(3, bytes[11]);
+                const floatVal = view.getFloat32(0, true);
+
+                // If not -1.0, this might be useful data
+                if (floatVal > 0) {
+                    // Could be outdoor temp, fuel level, etc.
+                    // Needs real-world testing to confirm
+                }
+            }
+
+            // TX=5: All zeros - might be RPM when engine off
+            if (tx === 5 && bytes.length >= 8) {
+                // Check if all bytes are zero
+                const allZeros = bytes.slice(4, 8).every((b: number) => b === 0);
+                if (allZeros) {
+                    // Engine is definitely off
+                    this.hal.powertrain.rpm.value = 0;
                 }
             }
         }

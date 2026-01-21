@@ -12,9 +12,57 @@ export class OBD2Service {
 
     private isConnected = false;
     private pollInterval: any;
+    private nativeFallbackMode = false; // True when using AIDL instead of ELM327
 
     constructor(hal: VehicleHAL) {
         this.hal = hal;
+        // Check if native AIDL is available and start using it as fallback
+        this.initNativeFallback();
+    }
+
+    /**
+     * Initialize native CANbus fallback mode.
+     * If AIDL data is available, use it instead of requiring ELM327.
+     */
+    private initNativeFallback() {
+        setInterval(() => {
+            // Check if AIDL is active (data received in last 3 seconds)
+            const wasInFallback = this.nativeFallbackMode;
+            const aidlActive = this.hal.isAidlActive();
+
+            if (aidlActive && !this.isConnected) {
+                if (!wasInFallback) {
+                    console.log('[OBD2] Native CANbus fallback mode ACTIVATED');
+                    console.log('[OBD2] Using AIDL data instead of ELM327');
+                }
+                this.nativeFallbackMode = true;
+                this.syncFromNativeCANbus();
+            } else if (!aidlActive && this.nativeFallbackMode) {
+                // AIDL connection lost
+                console.warn('[OBD2] Native CANbus fallback mode DEACTIVATED (AIDL inactive)');
+                this.nativeFallbackMode = false;
+            }
+        }, 1000); // Check every second
+    }
+
+    /**
+     * Sync data from native CANbus (AIDL) to OBD2 compatible format.
+     * This allows the UI to work without ELM327 when native data is available.
+     */
+    private syncFromNativeCANbus() {
+        // Update last data timestamp to indicate active connection
+        this.lastDataTimestamp = Date.now();
+
+        // HAL already has the data, we just need to ensure it's fresh
+        // The voltage, speed, and other data are already being updated by
+        // VehicleHAL's handleSnifferUpdate method
+    }
+
+    /**
+     * Check if we're using native CANbus fallback instead of ELM327.
+     */
+    isUsingNativeFallback(): boolean {
+        return this.nativeFallbackMode;
     }
 
     /**
@@ -206,18 +254,36 @@ export class OBD2Service {
         }
     }
 
-    // Scan for DTCs - supports both native and demo/test modes
+    // Scan for DTCs - supports native AIDL, ELM327, and demo/test modes
     async scanForFaults(): Promise<void> {
         this.hal.diagnostics.isScanning.value = true;
         this.hal.diagnostics.dtcs.value = [];
 
         try {
             if (this.isConnected) {
-                // Native mode: send actual OBD commands
+                // ELM327 mode: send actual OBD commands
                 await this.send("03");
                 await new Promise(r => setTimeout(r, 2000));
                 await this.send("07");
                 await new Promise(r => setTimeout(r, 2000));
+            } else if (this.nativeFallbackMode) {
+                // Native AIDL mode: simulate scan since we can't query DTCs via AIDL
+                console.log('[OBD2] Using native CANbus fallback - DTC scan limited');
+                await new Promise(r => setTimeout(r, 500));
+
+                // Check for voltage-based warnings
+                const voltage = this.hal.powertrain.batteryVoltage.value;
+                if (voltage < 11.5) {
+                    this.hal.diagnostics.dtcs.value = ['U0001: Low Battery Voltage (Native Mode)'];
+                } else if (voltage > 15.0) {
+                    this.hal.diagnostics.dtcs.value = ['U0002: High Battery Voltage (Native Mode)'];
+                }
+
+                // Check for temperature warnings
+                const coolant = this.hal.powertrain.coolant.value;
+                if (coolant > 110) {
+                    this.hal.diagnostics.dtcs.value.push('P0217: Engine Coolant Over Temperature');
+                }
             } else {
                 // Demo/test mode: simulate scan with mock data
                 await new Promise(r => setTimeout(r, 100));
@@ -259,10 +325,26 @@ export class OBD2Service {
     }
 
     hasActiveData(): boolean {
-        return (Date.now() - this.lastDataTimestamp) < 5000; // Active if data within last 5s
+        // Consider data active if either ELM327 is connected OR native AIDL is active
+        const elm327Active = (Date.now() - this.lastDataTimestamp) < 5000;
+        const nativeActive = this.nativeFallbackMode && this.hal.isAidlActive();
+        return elm327Active || nativeActive;
     }
 
     isWifiConnected(): boolean {
         return this.isConnected;
+    }
+
+    /**
+     * Get connection status string for UI display.
+     */
+    getConnectionStatus(): string {
+        if (this.isConnected) {
+            return 'ELM327 Connected';
+        } else if (this.nativeFallbackMode) {
+            return 'Native CANbus Active';
+        } else {
+            return 'Disconnected (Demo Mode)';
+        }
     }
 }

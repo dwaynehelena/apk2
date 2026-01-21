@@ -1001,9 +1001,12 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                         String cls = name.getClassName();
                         
                         // Build list of possible interface names
+                        // PRIORITY: Known working interface from logs
                         String[] possibleInterfaces = {
+                            "com.tw.carinfoservice.CarServiceAidl",  // DISCOVERED VIA LOGS - WORKING!
+                            pkg + ".CarServiceAidl",        // Generic pattern
                             pkg + ".ICarService",           // com.tw.carinfoservice.ICarService
-                            pkg + ".ICarInfoService",       // com.tw.carinfoservice.ICarInfoService  
+                            pkg + ".ICarInfoService",       // com.tw.carinfoservice.ICarInfoService
                             pkg + ".aidl.ICarService",      // com.tw.carinfoservice.aidl.ICarService
                             cls.replace("Service", ""),     // com.tw.carinfoservice.Car (Stub pattern)
                             "com.tw.car.ICarService",       // Cross-package
