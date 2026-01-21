@@ -1647,19 +1647,27 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
         
         new Thread(() -> {
             try {
-                BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
+                BluetoothAdapter btAdapter = null;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN_MR2) {
+                    android.bluetooth.BluetoothManager btManager = (android.bluetooth.BluetoothManager) getContext().getSystemService(android.content.Context.BLUETOOTH_SERVICE);
+                    if (btManager != null) btAdapter = btManager.getAdapter();
+                }
+                if (btAdapter == null) btAdapter = BluetoothAdapter.getDefaultAdapter();
+
                 if (btAdapter == null) {
                     addLog("Bluetooth Adapter NOT FOUND");
                     speakNow("Bluetooth not available");
                     getActivity().runOnUiThread(() -> call.reject("Bluetooth not available"));
                     return;
                 }
-                if (!btAdapter.isEnabled()) {
-                    addLog("Bluetooth disabled");
-                    speakNow("Please enable Bluetooth");
-                    getActivity().runOnUiThread(() -> call.reject("Bluetooth is disabled"));
-                    return;
+                
+                int btState = btAdapter.getState();
+                addLog("Bluetooth State: " + btState + " (12=ON, 10=OFF)");
+
+                if (!btAdapter.isEnabled() && btState != 12) {
+                    addLog("WARNING: Bluetooth reported DISABLED, but proceeding due to possible stack override...");
                 }
+                
                 
                 BluetoothDevice device = null;
                 String providedMac = call.getString("mac", "");
@@ -2189,6 +2197,9 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                         aidlEvent.put("tx", code);
                         aidlEvent.put("hex", hex.toString());
                         notifyListeners("canbusDump", aidlEvent);
+
+                        // Log to sniffer if active
+                        writeToSnifferLog("[AIDL_POLL] IFACE=" + iface + " TX=" + code + " HEX: " + hex.toString());
                     }
                 }
                 data.recycle();

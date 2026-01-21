@@ -33,7 +33,7 @@ export class OBD2Service {
 
     private autoConnect() {
         setTimeout(async () => {
-            if (!this.isConnected && !this.nativeFallbackMode) {
+            if (!this.isConnected) {
                 console.log('[OBD2] Auto-connecting to default WiFi ELM327...');
                 await this.connectWifi("192.168.0.10", 35000);
             }
@@ -50,10 +50,9 @@ export class OBD2Service {
             const wasInFallback = this.nativeFallbackMode;
             const aidlActive = this.hal.isAidlActive();
 
-            if (aidlActive && !this.isConnected) {
+            if (aidlActive) {
                 if (!wasInFallback) {
-                    console.log('[OBD2] Native CANbus fallback mode ACTIVATED');
-                    console.log('[OBD2] Using AIDL data instead of ELM327');
+                    console.log('[OBD2] Native CANbus data stream DETECTED');
                 }
                 this.nativeFallbackMode = true;
                 this.syncFromNativeCANbus();

@@ -645,7 +645,11 @@ class FytAdapter {
                             0x09: '6'
                         };
                         if (gearMap[gearByte]) {
-                            this.hal.powertrain.gear.value = gearMap[gearByte];
+                            const newGear = gearMap[gearByte];
+                            if (this.hal.powertrain.gear.value !== newGear) {
+                                console.log(`[VehicleHAL] AIDL Gear Shift: ${this.hal.powertrain.gear.value} -> ${newGear} (TX=18/byte8=${gearByte})`);
+                                this.hal.powertrain.gear.value = newGear;
+                            }
                         }
                     }
                 }
@@ -678,10 +682,14 @@ class FytAdapter {
                 const engineFlag = bytes[4];
                 if (engineFlag === 0) {
                     // Engine off - set RPM to 0
-                    this.hal.powertrain.rpm.value = 0;
+                    if (this.hal.powertrain.rpm.value !== 0) {
+                        console.log('[VehicleHAL] AIDL Engine Stop Signal (TX=5: 0x00)');
+                        this.hal.powertrain.rpm.value = 0;
+                    }
                 } else if (engineFlag === 1) {
                     // Engine running - set minimum idle RPM if RPM is 0
                     if (this.hal.powertrain.rpm.value === 0) {
+                        console.log('[VehicleHAL] AIDL Engine Start Signal (TX=5: 0x01)');
                         this.hal.powertrain.rpm.value = 750; // Typical idle
                     }
                 }
