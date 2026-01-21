@@ -94,10 +94,23 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
     private boolean hiworldSniffing = false;
     private java.io.FileWriter elmRawLog;
     private java.io.FileWriter hiworldRawLog;
+    private java.io.FileWriter snifferLogFile;
+    private java.io.FileWriter bootLogFile;
+    private String actualLogPath = "not_saved";
+    
+    // V4.5 Persistence Logic
+    private java.util.Map<ComponentName, android.os.IBinder> activeAidlServices = new java.util.concurrent.ConcurrentHashMap<>();
+    private java.util.Map<ComponentName, String> activeAidlDescriptors = new java.util.concurrent.ConcurrentHashMap<>();
+    private Thread aidlPollingThread;
+    private boolean isAidlPolling = false;
+    private android.database.ContentObserver settingsObserver;
 
     @Override
     public void load() {
-        Log.d("TwahhPlugin", "TwahhPlugin Loaded and Registered!");
+        super.load();
+        initBootLog();
+        addLog("TwahhPlugin Loaded (V4.5 HYPER-SYNC)");
+        startSettingsObserver();
         
         // Initialize Text-to-Speech for boot announcements
         tts = new TextToSpeech(getContext(), this);
@@ -767,7 +780,6 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
     private Thread aggressiveSnifferThread;
     private boolean aggressiveSnifferRunning = false;
     private java.util.HashMap<String, String> allSettingsCache = new java.util.HashMap<>();
-    private java.io.FileWriter snifferLogFile;
     
     @PluginMethod
     public void startSuperAggressiveSniffer(PluginCall call) {
@@ -785,7 +797,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
         // Generate unique filename with timestamp
         String timeStr = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
         String filename = "twahh_sniffer_" + timeStr + ".txt";
-        String actualLogPath = "not_saved";
+        actualLogPath = "not_saved";
 
         try {
             // Base paths - prioritize USB root
@@ -1133,11 +1145,22 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                                 reply.recycle();
                             } catch (Exception e) {}
                         }
+                        
+                        // NEW V4.5: Add to persistent polling
+                        activeAidlServices.put(name, service);
+                        if (discoveredDescriptor != null) {
+                            activeAidlDescriptors.put(name, discoveredDescriptor);
+                        } else {
+                            activeAidlDescriptors.put(name, "com.tw.carinfoservice.CarServiceAidl"); // Fallback priority
+                        }
+                        startAidlPollingThread();
                     }
                     
                     @Override
                     public void onServiceDisconnected(ComponentName name) {
                         addLog("SERVICE DISCONNECTED: " + name.flattenToString());
+                        activeAidlServices.remove(name);
+                        activeAidlDescriptors.remove(name);
                     }
                 };
                 
@@ -2069,5 +2092,134 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                 call.reject("Save Failed. Errors: " + String.join(" | ", errors));
             }
         }).start();
+    }
+    private void startSettingsObserver() {
+        try {
+            settingsObserver = new android.database.ContentObserver(new android.os.Handler(android.os.Looper.getMainLooper())) {
+                @Override
+                public void onChange(boolean selfChange, android.net.Uri uri) {
+                    super.onChange(selfChange, uri);
+                    if (uri == null) return;
+                    String key = uri.getLastPathSegment();
+                    if (key == null) return;
+                    
+                    try {
+                        int val = android.provider.Settings.System.getInt(getContext().getContentResolver(), key, -1);
+                        addLog("[SETTING] " + key + " changed: " + val);
+                        
+                        JSObject event = new JSObject();
+                        event.put("key", key);
+                        event.put("value", val);
+                        notifyListeners("settingUpdate", event);
+                        
+                        // Explicit Gear Mapping
+                        if ("REVERSE_STATUS_FOR_PROTOCOL".equals(key)) {
+                            JSObject gearEvent = new JSObject();
+                            gearEvent.put("gear", (val == 1 ? "R" : "P/D/N"));
+                            notifyListeners("canbusDump", gearEvent);
+                        }
+                    } catch (Exception e) {}
+                }
+            };
+            
+            getContext().getContentResolver().registerContentObserver(
+                android.provider.Settings.System.CONTENT_URI, 
+                true, 
+                settingsObserver
+            );
+            addLog("SettingsObserver registered for system settings.");
+        } catch (Exception e) {
+            addLog("Failed to start SettingsObserver: " + e.getMessage());
+        }
+    }
+
+    private void startAidlPollingThread() {
+        if (isAidlPolling) return;
+        isAidlPolling = true;
+        addLog("Starting Persistent AIDL Polling Thread (1000ms)");
+        
+        aidlPollingThread = new Thread(() -> {
+            while (isAidlPolling) {
+                try {
+                    for (java.util.Map.Entry<ComponentName, android.os.IBinder> entry : activeAidlServices.entrySet()) {
+                        android.os.IBinder service = entry.getValue();
+                        String iface = activeAidlDescriptors.get(entry.getKey());
+                        if (service != null && service.isBinderAlive()) {
+                            pollAidlService(service, iface);
+                        }
+                    }
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    break;
+                } catch (Exception e) {
+                    addLog("AIDL Polling Error: " + e.getMessage());
+                }
+            }
+        });
+        aidlPollingThread.start();
+    }
+
+    private void pollAidlService(android.os.IBinder service, String iface) {
+        // Priority codes for persistent tracking
+        int[] priorityCodes = {4, 5, 18, 7, 8};
+        
+        for (int code : priorityCodes) {
+            try {
+                android.os.Parcel data = android.os.Parcel.obtain();
+                android.os.Parcel reply = android.os.Parcel.obtain();
+                
+                if (iface != null && !iface.isEmpty()) {
+                    data.writeInterfaceToken(iface);
+                }
+                
+                boolean result = service.transact(code, data, reply, 0);
+                if (reply.dataSize() > 0) {
+                    reply.setDataPosition(0);
+                    int status = reply.readInt();
+                    if (status != -1) {
+                        byte[] bytes = reply.marshall();
+                        StringBuilder hex = new StringBuilder();
+                        for (int i = 0; i < Math.min(bytes.length, 32); i++) {
+                            hex.append(String.format("%02X ", bytes[i]));
+                        }
+                        
+                        JSObject aidlEvent = new JSObject();
+                        aidlEvent.put("type", "aidl_real");
+                        aidlEvent.put("desc", iface);
+                        aidlEvent.put("tx", code);
+                        aidlEvent.put("hex", hex.toString());
+                        notifyListeners("canbusDump", aidlEvent);
+                    }
+                }
+                data.recycle();
+                reply.recycle();
+            } catch (Exception e) {}
+        }
+    }
+
+    private void initBootLog() {
+        try {
+            String timeStr = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
+            String filename = "twahh_boot_" + timeStr + ".txt";
+            
+            // Search for USB or Internal Storage
+            java.io.File usbDir = new java.io.File("/storage/usb1");
+            if (!usbDir.exists() || !usbDir.canWrite()) {
+                usbDir = new java.io.File("/storage/usb0");
+            }
+            if (!usbDir.exists() || !usbDir.canWrite()) {
+                usbDir = getContext().getExternalFilesDir(null);
+            }
+            
+            if (usbDir != null) {
+                java.io.File logFile = new java.io.File(usbDir, filename);
+                bootLogFile = new java.io.FileWriter(logFile, true);
+                bootLogFile.write("=== QUANTUM OS BOOT LOG " + timeStr + " ===\n");
+                bootLogFile.flush();
+                addLog("Boot log initialized: " + logFile.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            Log.e("TwahhPlugin", "Failed to init boot log", e);
+        }
     }
 }

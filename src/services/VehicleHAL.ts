@@ -51,7 +51,8 @@ export class VehicleHAL {
         intakeTemp: signal(0),
         oilTemp: signal(0),
         transTemp: signal(0),
-        fuelEco: signal(0)
+        fuelEco: signal(0),
+        oilPressure: signal(0) // PSI
     };
 
     // Body Signals
@@ -81,7 +82,13 @@ export class VehicleHAL {
             highBeam: signal(false),
             hazards: signal(false)
         },
-        outdoorTemp: signal(20) // Celsius
+        outdoorTemp: signal(20), // Celsius
+        tpms: {
+            fl: signal(35), // PSI
+            fr: signal(35),
+            rl: signal(35),
+            rr: signal(35)
+        }
     };
 
     // Motion Signals (GPS/Accel)
@@ -254,6 +261,14 @@ export class VehicleHAL {
                 if (data.type === 'aidl_real' || data.type === 'aidl_success') {
                     this.lastAidlUpdate = Date.now();
                     this.fytAdapter.handleSnifferUpdate(data);
+                } else if (data.gear) {
+                    this.powertrain.gear.value = data.gear;
+                }
+            });
+
+            TwahhPlugin.addListener('settingUpdate', (data: any) => {
+                if (data.key === 'REVERSE_STATUS_FOR_PROTOCOL') {
+                    this.powertrain.gear.value = data.value === 1 ? 'R' : 'P/D/N';
                 }
             });
             console.log('[VehicleHAL] Native TwahhPlugin registered.');

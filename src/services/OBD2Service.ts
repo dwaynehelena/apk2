@@ -165,10 +165,26 @@ export class OBD2Service {
             await this.send("01 0F"); // Intake Air Temp
             await this.send("01 42"); // Battery Voltage
 
-            // Mopar Specific (Jeep Wrangler JK / Dodge / Chrysler)
-            // Transmission Temperature is often 21 02 or 21 30
-            await this.send("21 02");
-        }, 250); // 4Hz polling loop (reduced slightly to avoid congestion)
+            // Mopar Specific (Jeep Wrangler JK 2012+)
+            // Group 1: Standard / Powertrain (Header 07E0)
+            await this.send("AT SH 07E0");
+            await this.send("22 02 2A"); // Oil Pressure
+            await this.send("22 01 21"); // Oil Temp
+
+            // Group 2: Transmission (Header 07E1)
+            await this.send("AT SH 07E1");
+            await this.send("21 30");    // Trans Temp
+
+            // Group 3: TPMS (Header 07E0)
+            await this.send("AT SH 07E0");
+            await this.send("22 A0 20"); // TPMS FL
+            await this.send("22 A0 21"); // TPMS FR
+            await this.send("22 A0 22"); // TPMS RL
+            await this.send("22 A0 23"); // TPMS RR
+
+            // Reset to default functional header if needed for standard PIDs
+            await this.send("AT SH 7DF");
+        }, 500); // 2Hz polling loop for high-density Mopar data
     }
 
     private handleData(raw: string) {
@@ -230,16 +246,46 @@ export class OBD2Service {
         }
         else if (mode === '61') { // Response to Mode 21 (Mopar)
             this.lastDataTimestamp = Date.now();
-            if (pid === '02') { // Mopar Trans Temp
+            if (pid === '02' || pid === '30') { // Mopar Trans Temp (Mode 21)
                 if (parts.length >= 4) {
                     const A = parseInt(parts[2], 16);
                     const B = parseInt(parts[3], 16);
                     if (!isNaN(A) && !isNaN(B)) {
-                        const temp = (A * 256 + B) / 4 - 40;
-                        if (temp > -40 && temp < 200) {
-                            this.hal.powertrain.transTemp.value = Math.round(temp);
-                        }
+                        const tempC = (A * 256 + B) / 4 - 40;
+                        this.hal.powertrain.transTemp.value = Math.round(tempC);
                     }
+                }
+            }
+        }
+        else if (mode === '62') { // Response to Mode 22 (Mopar/Extended)
+            this.lastDataTimestamp = Date.now();
+            const fullPid = parts[1] + (parts[2] || '');
+
+            if (fullPid === '022A') { // Oil Pressure
+                const A = parseInt(parts[3], 16);
+                if (!isNaN(A)) {
+                    const psi = (A * 150) / 255 - 1;
+                    this.hal.powertrain.oilPressure.value = Math.round(Math.max(0, psi));
+                }
+            }
+            else if (fullPid === '0121') { // Oil Temp
+                const A = parseInt(parts[3], 16);
+                if (!isNaN(A)) {
+                    const tempC = A - 40; // Mopar 22 0121 is usually offset by 40
+                    this.hal.powertrain.oilTemp.value = tempC;
+                }
+            }
+            else if (fullPid.startsWith('A0')) { // TPMS
+                const A = parseInt(parts[3], 16);
+                const B = parseInt(parts[4], 16);
+                if (!isNaN(A) && !isNaN(B)) {
+                    // Formula: (((256*A)+B)/3+22/3)*0.145
+                    const psi = (((256 * A) + B) / 3 + 7.33) * 0.145;
+                    const val = Math.round(psi);
+                    if (fullPid === 'A020') this.hal.body.tpms.fl.value = val;
+                    if (fullPid === 'A021') this.hal.body.tpms.fr.value = val;
+                    if (fullPid === 'A022') this.hal.body.tpms.rl.value = val;
+                    if (fullPid === 'A023') this.hal.body.tpms.rr.value = val;
                 }
             }
         }
