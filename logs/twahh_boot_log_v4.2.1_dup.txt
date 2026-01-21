@@ -1,0 +1,36 @@
+[12:24:20.822] INFO Accessing Kernel...
+[12:24:20.827] INFO Plat: android (Native: true)
+[12:24:20.835] WARN HW: Allwinner A133
+[12:24:20.838] INFO ⏳ LOG TIMER STARTED (60s)
+[12:24:20.843] WARN --- ELM327 DIAGNOSTICS ---
+[12:24:20.846] INFO Checking ELM327 Status...
+[12:24:20.849] WARN ELM327 Disconnected. Attempting Uplink...
+[12:24:23.086] OK   🔗 ELM327 CONNECTION ESTABLISHED
+[12:24:23.095] WARN --- SCANNING CANBUS APPS ---
+[12:24:23.396] INFO Found 10 potential CANbus apps:
+[12:24:23.400] OK     [car] com.tw.carinfoservice
+[12:24:23.402] OK     [car] cn.cardoor.zt360
+[12:24:23.405] OK     [car] com.wow.carlauncher.driver.sys.lanseobd
+[12:24:23.408] OK     [car] com.tw.carchoose
+[12:24:23.410] OK     [car] cn.cardoor.d3dview
+[12:24:23.412] OK     [car] com.dofun.carassistant.car
+[12:24:23.415] OK     [car] com.tw.carapps
+[12:24:23.417] OK     [car] com.tw.car
+[12:24:23.421] OK     [car] com.wow.carlauncher.driver.ls.jj
+[12:24:23.424] OK     [car] com.dofun.carsetting
+[12:24:23.426] WARN --- PROBING PROVIDERS ---
+[12:24:23.460] WARN [DENIED] content://com.tw.carinfoservice
+[12:24:23.463] WARN [DENIED] content://com.tw.carinfoservice/carinfo
+[12:24:23.466] WARN [DENIED] content://com.tw.carinfoservice.provider
+[12:24:23.470] WARN [DENIED] content://com.tw.car
+[12:24:23.474] WARN [DENIED] content://com.tw.car/canbus
+[12:24:23.478] WARN [DENIED] content://com.tw.car.provider
+[12:24:23.481] WARN [DENIED] content://com.dofun.carassistant.car
+[12:24:23.486] OK   [ACCESSIBLE] content://settings/system
+[12:24:35.853] WARN --- STARTING SNIFFER ---
+[12:24:35.865] OK   📡 SNIFFER STARTED
+[12:24:35.871] FAIL Sniffer failed: Cannot read properties of undefined (reading 'status')
+[12:24:41.688] WARN --- STARTING SNIFFER ---
+[12:24:42.024] OK   📡 SNIFFER STARTED
+[12:24:42.052] FAIL Sniffer failed: Cannot read properties of undefined (reading 'status')
+[12:24:45.427] INFO Saving dump...
