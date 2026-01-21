@@ -38,6 +38,26 @@
         </provider>
     </application>
 
+    <!-- Queries for Android 11+ (SDK 30+) Service Discovery -->
+    <queries>
+        <package android:name="com.tw.carinfoservice" />
+        <package android:name="com.tw.car" />
+        <package android:name="com.tw.carchoose" />
+        <package android:name="com.tw.carapps" />
+        <package android:name="com.dofun.carassistant.car" />
+        <package android:name="com.dofun.carsetting" />
+        <package android:name="com.syu.canbus" />
+        <package android:name="com.hiworld.canbus" />
+        <package android:name="com.xyauto.canbus" />
+        <package android:name="com.lhz.canbus" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+        <intent>
+            <action android:name="com.tw.carinfoservice.CarService" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <!-- Standard Android Permissions -->

@@ -772,26 +772,39 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
     @PluginMethod
     public void startSuperAggressiveSniffer(PluginCall call) {
         if (aggressiveSnifferRunning) {
-            call.resolve();
+            JSObject ret = new JSObject();
+            ret.put("status", "running");
+            ret.put("message", "Already running");
+            call.resolve(ret);
             return;
         }
         
         aggressiveSnifferRunning = true;
         
         // Open log file - use structured TWLogs directory
+        // Generate unique filename with timestamp
+        String timeStr = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
+        String filename = "twahh_sniffer_" + timeStr + ".txt";
+        String actualLogPath = "not_saved";
+
         try {
-            // Base paths
+            // Base paths - prioritize USB root
             java.util.List<String> pathList = new java.util.ArrayList<>();
-            pathList.add("/storage/emulated/0/TWLogs/Sniffer/twahh_canbus_dump.txt");
-            pathList.add("/sdcard/TWLogs/Sniffer/twahh_canbus_dump.txt");
-            pathList.add("/storage/usb1/TWLogs/Sniffer/twahh_canbus_dump.txt");
-            pathList.add("/usb1/TWLogs/Sniffer/twahh_canbus_dump.txt");
-            pathList.add("/mnt/usb_storage/TWLogs/Sniffer/twahh_canbus_dump.txt");
+            pathList.add("/storage/usb1/" + filename);
+            pathList.add("/storage/usb0/" + filename);
+            pathList.add("/mnt/media_rw/usb1/" + filename);
+            pathList.add("/mnt/media_rw/usb0/" + filename);
+            pathList.add("/mnt/usb_storage/" + filename);
+            pathList.add("/udisk/" + filename);
+            
+            // Internal storage fallback
+            pathList.add("/storage/emulated/0/TWLogs/" + filename);
+            pathList.add("/sdcard/TWLogs/" + filename);
             
             // App-specific fallback
             java.io.File appFile = getContext().getExternalFilesDir(null);
             if (appFile != null) {
-                pathList.add(new java.io.File(appFile, "TWLogs/Sniffer/twahh_canbus_dump.txt").getAbsolutePath());
+                pathList.add(new java.io.File(appFile, "TWLogs/" + filename).getAbsolutePath());
             }
 
             for (String path : pathList) {
@@ -801,10 +814,11 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                     java.io.File parent = f.getParentFile();
                     if (parent != null && parent.exists() && parent.canWrite()) {
                         snifferLogFile = new java.io.FileWriter(path, true);
-                        snifferLogFile.write("\n\n=== NEW SESSION " + new java.util.Date() + " ===\n");
+                        snifferLogFile.write("=== SNIFFER SESSION " + new java.util.Date() + " ===\n");
                         snifferLogFile.write("Log file: " + path + "\n");
                         snifferLogFile.flush();
                         addLog("SNIFFER LOG: " + path);
+                        actualLogPath = path;
                         break;
                     }
                 } catch (Exception e) {
@@ -1004,10 +1018,11 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
         addLog("SUPER AGGRESSIVE SNIFFER STARTED");
         writeToSnifferLog("SUPER AGGRESSIVE SNIFFER STARTED - polling at 500ms");
         
+        
         JSObject ret = new JSObject();
         ret.put("status", "running");
         ret.put("broadcastActions", megaFilter.countActions());
-        ret.put("logFile", "/storage/emulated/0/twahh_canbus_dump.txt");
+        ret.put("logFile", actualLogPath);
         call.resolve(ret);
     }
     
@@ -2035,12 +2050,13 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                 try {
                      java.io.File dir = new java.io.File(path);
                      if (dir.exists() && dir.canWrite()) {
-                         java.io.File file = new java.io.File(dir, "twahh_boot_log.txt");
-                         java.io.FileWriter writer = new java.io.FileWriter(file);
-                         writer.write(content);
-                         writer.close();
-                         success = true;
-                         successPaths.add(path + "/twahh_boot_log.txt");
+                          String timeStr = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
+                          java.io.File file = new java.io.File(dir, "twahh_boot_" + timeStr + ".txt");
+                          java.io.FileWriter writer = new java.io.FileWriter(file);
+                          writer.write(content);
+                          writer.close();
+                          success = true;
+                          successPaths.add(file.getAbsolutePath());
                      }
                 } catch (Exception e) {}
             }
