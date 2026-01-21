@@ -1,0 +1,36 @@
+=== QUANTUM OS DEBUG LOG ===
+Exported: 2026-01-21T12:20:19.598Z
+
+[23:19:56.066] TTS Init failed: -1
+[23:19:56.069] === EXTENDED DIAGNOSTICS START ===
+[23:19:56.070] Device: Allwinner A133 (ceres-b6)
+[23:19:56.071] Android SDK: 29
+[23:19:56.074] PERM CHECK android.permission.BLUETOOTH: GRANTED
+[23:19:56.076] PERM CHECK android.permission.BLUETOOTH_ADMIN: GRANTED
+[23:19:56.078] PERM CHECK android.permission.ACCESS_FINE_LOCATION: GRANTED
+[23:19:56.081] PERM CHECK android.permission.INTERNET: GRANTED
+[23:19:57.281] [JS] [INFO] [VehicleHAL] Initializing FYT Bridge...
+[23:19:57.286] [JS] [WARN] Capacitor plugin "TwahhPlugin" already registered. Cannot register plugins twice.
+[23:19:57.297] [JS] [INFO] [VehicleHAL] Native TwahhPlugin registered.
+[23:19:57.302] [JS] [INFO] [VehicleHAL] Legacy TwahhPlugin listener attached.
+[23:19:57.305] [JS] [WARN] Native Bridge not detected. App list empty.
+[23:19:57.309] [JS] [INFO] [MAIN] Starting connectivity subscriber...
+[23:19:57.315] [JS] [INFO] [MAIN] VIEW UPDATE -> CONNECTION_PROMPT (RealData: false)
+[23:19:57.318] [JS] [INFO] [MAIN] Mounting ConnectionPrompt
+[23:19:57.401] [JS] [ERROR] Weather fetch failed {}
+[23:19:58.167] [JS] [INFO] [VehicleHAL] Starting Native Sniffers...
+[23:19:58.194] SNIFFER LOG: /storage/emulated/0/TWLogs/Sniffer/twahh_canbus_dump.txt
+[23:19:58.201] MEGA BROADCAST registered: 60 actions
+[23:19:58.245] SUPER AGGRESSIVE SNIFFER STARTED
+[23:19:58.498] DEEP BROADCAST MONITOR registered with 37 actions
+[23:19:58.519] [JS] [INFO] Splash Screen Hidden via Main
+[23:19:59.330] CANBUS_DUMP: BOUND TO SERVICE: com.tw.carinfoservice/com.tw.carinfoservice.CarService
+[23:19:59.340] BOUND TO SERVICE: com.tw.carinfoservice/com.tw.carinfoservice.CarService
+[23:19:59.823] CANBUS_DUMP: BOUND TO SERVICE: com.dofun.carassistant.car/com.dofun.carassistant.car.service.CarService
+[23:19:59.826] BOUND TO SERVICE: com.dofun.carassistant.car/com.dofun.carassistant.car.service.CarService
+[23:19:59.869] [JS] [INFO] [VehicleHAL] Native Sniffers Requested.
+[23:19:59.886] [JS] [INFO] [VehicleHAL] Discovered and using AIDL service: com.tw.carinfoservice.CarServiceAidl
+[23:19:59.900] [JS] [INFO] [VehicleHAL] TX=4: Speed=13.7 km/h
+[23:20:00.247] [JS] [INFO] [OBD2] Native CANbus fallback mode ACTIVATED
+[23:20:00.258] [JS] [INFO] [OBD2] Using AIDL data instead of ELM327
+[23:20:03.253] [JS] [WARN] [OBD2] Native CANbus fallback mode DEACTIVATED (AIDL inactive)
