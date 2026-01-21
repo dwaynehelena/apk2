@@ -56,7 +56,7 @@ export class ConnectionPrompt {
                 <div class="prompt-footer">
                     <button class="q-btn text-btn" id="prompt-btn-logs">VIEW SYSTEM LOGS</button>
                     <div class="status-indicator">
-                        <span class="dot"></span> WAITING FOR BINDER...
+                        <span class="dot"></span> <span class="text-node">WAITING FOR BINDER...</span>
                     </div>
                 </div>
             </div>
@@ -190,9 +190,81 @@ export class ConnectionPrompt {
             this.obd.connectBluetooth();
         });
 
-        this.element.querySelector('#prompt-btn-logs')?.addEventListener('click', () => {
-            // Placeholder: Could open a log overlay
-            alert("Check device logs via ADB or use the Sniffer tool in Settings.");
+        this.element.querySelector('#prompt-btn-logs')?.addEventListener('click', async () => {
+            const logs = await this.hal.getDebugLogs();
+            this.showLogViewer(logs);
         });
+    }
+
+    private showLogViewer(logs: string[]) {
+        const viewer = document.createElement('div');
+        viewer.className = 'log-viewer-overlay glass-panel';
+        viewer.innerHTML = `
+            <div class="log-viewer-header">
+                <h3>SYSTEM LOGS</h3>
+                <button class="q-btn sm-btn close-logs">CLOSE</button>
+            </div>
+            <div class="log-content">
+                ${logs.map(l => `<div class="log-line">${l}</div>`).join('')}
+            </div>
+            <div class="log-viewer-footer">
+                <button class="q-btn sm-btn copy-logs">COPY TO CLIPBOARD</button>
+            </div>
+        `;
+
+        // Styles specific to viewer
+        const style = document.createElement('style');
+        style.textContent = `
+            .log-viewer-overlay {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 90%;
+                height: 80%;
+                background: rgba(0, 10, 20, 0.98);
+                border: 1px solid var(--q-primary);
+                z-index: 11000;
+                display: flex;
+                flex-direction: column;
+                padding: 20px;
+                box-shadow: 0 0 100px rgba(0,0,0,0.8);
+            }
+            .log-viewer-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+                padding-bottom: 10px;
+                margin-bottom: 10px;
+            }
+            .log-content {
+                flex: 1;
+                overflow-y: auto;
+                font-family: monospace;
+                font-size: 10px;
+                color: #ccc;
+                background: rgba(0,0,0,0.3);
+                padding: 10px;
+                white-space: pre-wrap; 
+                text-align: left;
+            }
+            .log-line { border-bottom: 1px solid rgba(255,255,255,0.02); padding: 2px 0; }
+            .log-viewer-footer {
+                padding-top: 10px;
+                display: flex;
+                justify-content: flex-end;
+            }
+            .q-btn.sm-btn { padding: 5px 10px; font-size: 10px; }
+        `;
+        viewer.appendChild(style);
+
+        viewer.querySelector('.close-logs')?.addEventListener('click', () => viewer.remove());
+        viewer.querySelector('.copy-logs')?.addEventListener('click', () => {
+            navigator.clipboard.writeText(logs.join('\n'));
+            (viewer.querySelector('.copy-logs') as HTMLElement).textContent = 'COPIED!';
+        });
+
+        document.body.appendChild(viewer);
     }
 }

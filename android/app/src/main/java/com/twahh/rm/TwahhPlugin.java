@@ -62,6 +62,13 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
         call.resolve(ret);
     }
 
+    private void checkAndLogPermission(String perm) {
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            int status = getContext().checkSelfPermission(perm);
+            addLog("PERM CHECK " + perm + ": " + (status == PackageManager.PERMISSION_GRANTED ? "GRANTED" : "DENIED"));
+        }
+    }
+
     @PluginMethod
     public void addNativeLog(PluginCall call) {
         String msg = call.getString("msg");
@@ -90,6 +97,17 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
         // Initialize Text-to-Speech for boot announcements
         tts = new TextToSpeech(getContext(), this);
         
+        // DEBUG: Check Permissions Explicitly
+        addLog("=== EXTENDED DIAGNOSTICS START ===");
+        addLog("Device: " + Build.MANUFACTURER + " " + Build.MODEL + " (" + Build.DEVICE + ")");
+        addLog("Android SDK: " + Build.VERSION.SDK_INT);
+        checkAndLogPermission(android.Manifest.permission.BLUETOOTH);
+        checkAndLogPermission(android.Manifest.permission.BLUETOOTH_ADMIN);
+        checkAndLogPermission(android.Manifest.permission.BLUETOOTH_CONNECT);
+        checkAndLogPermission(android.Manifest.permission.BLUETOOTH_SCAN);
+        checkAndLogPermission(android.Manifest.permission.ACCESS_FINE_LOCATION);
+        checkAndLogPermission(android.Manifest.permission.INTERNET);
+        
         IntentFilter filter = new IntentFilter();
         // Standard Android
         filter.addAction(Intent.ACTION_BATTERY_CHANGED);
@@ -116,6 +134,9 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                     int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
                     float batPct = level * 100 / (float)scale;
                     ret.put("batteryLevel", batPct);
+                } else {
+                   // Log important system broadcasts to buffer
+                   addLog("SYS EVENT: " + action);
                 }
                 
                 if (intent.getExtras() != null) {

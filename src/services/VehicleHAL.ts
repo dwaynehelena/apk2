@@ -1,5 +1,12 @@
 import { signal, computed } from '@preact/signals-core';
 import { registerPlugin } from '@capacitor/core';
+
+// Define minimal interface for the plugin
+interface TwahhPluginImpl {
+    getPluginLogs(): Promise<{ logs: string[] }>;
+}
+
+const TwahhPlugin = registerPlugin<TwahhPluginImpl>('TwahhPlugin');
 import { FytCanbusCodes, FytBroadcastPayload, FYT_BRIDGE_EVENT } from './FytTypes';
 
 /**
@@ -145,6 +152,16 @@ export class VehicleHAL {
 
     private lastAidlUpdate: number = 0;
     private lastRealDataReceived: number = 0;
+
+    public async getDebugLogs(): Promise<string[]> {
+        try {
+            const ret = await TwahhPlugin.getPluginLogs();
+            return ret.logs || [];
+        } catch (e) {
+            console.error("Failed to fetch debug logs", e);
+            return [];
+        }
+    }
 
     isAidlActive(): boolean {
         return (Date.now() - this.lastAidlUpdate) < 3000;
