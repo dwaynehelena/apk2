@@ -208,6 +208,7 @@ export class ConnectionPrompt {
                 ${logs.map(l => `<div class="log-line">${l}</div>`).join('')}
             </div>
             <div class="log-viewer-footer">
+                <button class="q-btn sm-btn save-usb" style="margin-right: 10px; background: var(--q-warning); color: black;">SAVE TO USB</button>
                 <button class="q-btn sm-btn copy-logs">COPY TO CLIPBOARD</button>
             </div>
         `;
@@ -263,6 +264,19 @@ export class ConnectionPrompt {
         viewer.querySelector('.copy-logs')?.addEventListener('click', () => {
             navigator.clipboard.writeText(logs.join('\n'));
             (viewer.querySelector('.copy-logs') as HTMLElement).textContent = 'COPIED!';
+        });
+
+        viewer.querySelector('.save-usb')?.addEventListener('click', async () => {
+            const btn = viewer.querySelector('.save-usb') as HTMLElement;
+            btn.textContent = 'SAVING...';
+            try {
+                const result = await this.hal.saveDebugLogsToUsb();
+                btn.textContent = 'SAVED!';
+                alert(result);
+            } catch (e: any) {
+                btn.textContent = 'FAILED';
+                alert('Error: ' + e.message);
+            }
         });
 
         document.body.appendChild(viewer);

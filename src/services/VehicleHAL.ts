@@ -4,6 +4,7 @@ import { registerPlugin } from '@capacitor/core';
 // Define minimal interface for the plugin
 interface TwahhPluginImpl {
     getPluginLogs(): Promise<{ logs: string[] }>;
+    saveLogFile(options: { content: string }): Promise<{ paths: string[] }>;
 }
 
 const TwahhPlugin = registerPlugin<TwahhPluginImpl>('TwahhPlugin');
@@ -160,6 +161,25 @@ export class VehicleHAL {
         } catch (e) {
             console.error("Failed to fetch debug logs", e);
             return [];
+        }
+    }
+
+    public async saveDebugLogsToUsb(): Promise<string> {
+        try {
+            const logs = await this.getDebugLogs();
+            if (logs.length === 0) return "No logs to save";
+
+            const timestamp = new Date().toISOString();
+            const content = `=== QUANTUM OS DEBUG LOG ===\nExported: ${timestamp}\n\n${logs.join('\n')}`;
+
+            const ret = await TwahhPlugin.saveLogFile({ content });
+            if (ret.paths && ret.paths.length > 0) {
+                return `Saved to: ${ret.paths[0]} (and ${ret.paths.length - 1} others)`;
+            }
+            return "Save successful, but path unknown";
+        } catch (e: any) {
+            console.error("Failed to save logs", e);
+            throw new Error(e.message || "Unknown error saving logs");
         }
     }
 
