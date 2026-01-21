@@ -220,8 +220,8 @@ export class DeepDiagnostics {
             const { TwahhPlugin } = (window as any).Capacitor.Plugins;
             const res = await TwahhPlugin.startSuperAggressiveSniffer();
             this.log(`📡 SNIFFER STARTED`, 'success');
-            this.log(`Status: ${res.status}`, 'info');
-            this.log(`Log File: ${res.logFile}`, 'info');
+            if (res && res.status) this.log(`Status: ${res.status}`, 'info');
+            if (res && res.logFile) this.log(`Log File: ${res.logFile}`, 'info');
 
             // Also enable raw ELM sniffing if connected
             if (this.obd.isWifiConnected()) {

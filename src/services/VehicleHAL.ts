@@ -186,7 +186,7 @@ export class VehicleHAL {
     }
 
     isAidlActive(): boolean {
-        return (Date.now() - this.lastAidlUpdate) < 3000;
+        return (Date.now() - this.lastAidlUpdate) < 10000; // 10 second timeout
     }
 
     isConnected = computed(() => {
@@ -221,7 +221,7 @@ export class VehicleHAL {
         clearTimeout(this.canbusTimeout);
         this.canbusTimeout = setTimeout(() => {
             this.system.canbusActive.value = false;
-        }, 3000); // 3 seconds timeout
+        }, 10000); // 10 seconds timeout
     }
 
     private initFytBridge() {
@@ -508,7 +508,7 @@ class FytAdapter {
      * Transaction Code Reference (discovered from logs 2026-01-21):
      * TX=1,2: Error responses (UTF-16 "Attempt to invoke interface")
      * TX=3: Status Int (4 bytes, usually 0x00000000)
-     * TX=4: **SPEED** Float32 at offset 4 (e.g., 13.9 km/h = 0x415E6666)
+     * TX=4: **BATTERY VOLTAGE** Float32 at offset 4 (e.g., 13.7v = 0x415B3333)
      * TX=5: Engine running flag (byte at offset 4: 0=off, 1=on)
      * TX=6: Invalid marker (0xFFFFFFFF)
      * TX=7,8: Door/Climate status? (20 bytes, complex structure)
@@ -525,9 +525,9 @@ class FytAdapter {
         const bytes = hex.split(' ').filter((b: string) => b.length > 0).map((b: string) => parseInt(b, 16));
 
         // Debug logging
-        const debugMode = false; // Set to true for verbose logging
+        const debugMode = true; // Enabled for V4.4 discovery
         if (debugMode) {
-            console.log(`[VehicleHAL] RX: DESC=${desc} TX=${tx} LEN=${bytes.length}`);
+            console.log(`[VehicleHAL] AIDL RX: TX=${tx} bytes=${bytes.length}`);
         }
 
         // Discovery-based Mapping: Accept any descriptor reported by the native plugin
@@ -537,8 +537,7 @@ class FytAdapter {
                 console.log(`[VehicleHAL] Discovered and using AIDL service: ${desc}`);
             }
 
-            // TX=4: SPEED (Float32 at offset 4) - CORRECTED MAPPING
-            // Log evidence: 66 66 5E 41 = 13.9 km/h, 9A 99 41 41 = 12.1 km/h
+            // TX=4: BATTERY VOLTAGE (Float32 at offset 4) - CORRECTED
             if (tx === 4 && bytes.length >= 8) {
                 const buffer = new ArrayBuffer(4);
                 const view = new DataView(buffer);
@@ -546,15 +545,15 @@ class FytAdapter {
                 view.setUint8(1, bytes[5]);
                 view.setUint8(2, bytes[6]);
                 view.setUint8(3, bytes[7]);
-                const speed = view.getFloat32(0, true);
-                if (speed >= 0 && speed < 300) {
-                    this.hal.powertrain.speed.value = Math.round(speed);
+                const volts = view.getFloat32(0, true);
+                if (volts >= 0 && volts < 25) {
+                    this.hal.updateVoltage(volts, true);
                     this.hal.notifyCanbusActivity();
-                    if (speed > 0) {
-                        console.log(`[VehicleHAL] TX=4: Speed=${speed.toFixed(1)} km/h`);
+                    if (debugMode) {
+                        console.log(`[VehicleHAL] TX=4: Voltage=${volts.toFixed(2)}V`);
                     }
                 } else if (debugMode) {
-                    console.warn(`[VehicleHAL] TX=4: Invalid speed=${speed}`);
+                    console.warn(`[VehicleHAL] TX=4: Invalid volts=${volts}`);
                 }
             }
 
