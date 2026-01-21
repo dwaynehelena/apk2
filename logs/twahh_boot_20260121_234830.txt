@@ -1,0 +1,68 @@
+=== QUANTUM OS DEBUG LOG ===
+Exported: 2026-01-21T12:48:30.729Z
+
+[23:47:29.493] TTS Init failed: -1
+[23:47:29.495] === EXTENDED DIAGNOSTICS START ===
+[23:47:29.496] Device: Allwinner A133 (ceres-b6)
+[23:47:29.497] Android SDK: 29
+[23:47:29.500] PERM CHECK android.permission.BLUETOOTH: GRANTED
+[23:47:29.502] PERM CHECK android.permission.BLUETOOTH_ADMIN: GRANTED
+[23:47:29.504] PERM CHECK android.permission.ACCESS_FINE_LOCATION: GRANTED
+[23:47:29.506] PERM CHECK android.permission.INTERNET: GRANTED
+[23:47:30.626] [JS] [INFO] [VehicleHAL] Initializing FYT Bridge...
+[23:47:30.637] [JS] [WARN] Capacitor plugin "TwahhPlugin" already registered. Cannot register plugins twice.
+[23:47:30.641] [JS] [INFO] [VehicleHAL] Native TwahhPlugin registered.
+[23:47:30.658] [JS] [INFO] [VehicleHAL] Legacy TwahhPlugin listener attached.
+[23:47:30.663] [JS] [WARN] Native Bridge not detected. App list empty.
+[23:47:30.666] [JS] [INFO] [MAIN] Starting connectivity subscriber...
+[23:47:30.669] [JS] [INFO] [MAIN] VIEW UPDATE -> CONNECTION_PROMPT (RealData: false)
+[23:47:30.673] [JS] [INFO] [MAIN] Mounting ConnectionPrompt
+[23:47:30.730] [JS] [ERROR] Weather fetch failed {}
+[23:47:31.549] [JS] [INFO] [VehicleHAL] Starting Native Sniffers...
+[23:47:31.582] SNIFFER LOG: /storage/usb1/twahh_sniffer_20260121_234731.txt
+[23:47:31.590] MEGA BROADCAST registered: 60 actions
+[23:47:31.615] CANBUS_DUMP: BOUND TO SERVICE: com.tw.carinfoservice/com.tw.carinfoservice.CarService
+[23:47:31.618] SUPER AGGRESSIVE SNIFFER STARTED
+[23:47:31.620] BOUND TO SERVICE: com.tw.carinfoservice/com.tw.carinfoservice.CarService
+[23:47:32.194] CANBUS_DUMP: BOUND TO SERVICE: com.dofun.carassistant.car/com.dofun.carassistant.car.service.CarService
+[23:47:32.205] BOUND TO SERVICE: com.dofun.carassistant.car/com.dofun.carassistant.car.service.CarService
+[23:47:32.252] [JS] [INFO] [VehicleHAL] AIDL RX: TX=1 bytes=64
+[23:47:32.258] [JS] [INFO] [VehicleHAL] AIDL RX: TX=2 bytes=64
+[23:47:32.261] [JS] [INFO] [VehicleHAL] AIDL RX: TX=3 bytes=4
+[23:47:32.269] [JS] [INFO] [VehicleHAL] AIDL RX: TX=4 bytes=8
+[23:47:32.319] [JS] [INFO] [VehicleHAL] Discovered and using AIDL service: com.tw.carinfoservice.CarServiceAidl
+[23:47:32.330] [JS] [INFO] [VehicleHAL] TX=4: Voltage=12.30V
+[23:47:32.332] [JS] [INFO] [VehicleHAL] AIDL RX: TX=5 bytes=8
+[23:47:32.341] [JS] [INFO] [VehicleHAL] AIDL RX: TX=6 bytes=8
+[23:47:32.347] [JS] [INFO] [VehicleHAL] AIDL RX: TX=7 bytes=20
+[23:47:32.350] [JS] [INFO] [VehicleHAL] AIDL RX: TX=8 bytes=20
+[23:47:32.355] [JS] [INFO] [VehicleHAL] AIDL RX: TX=9 bytes=8
+[23:47:32.363] [JS] [INFO] [VehicleHAL] AIDL RX: TX=10 bytes=8
+[23:47:32.365] [JS] [INFO] [VehicleHAL] AIDL RX: TX=11 bytes=8
+[23:47:32.368] [JS] [INFO] [VehicleHAL] AIDL RX: TX=12 bytes=8
+[23:47:32.371] [JS] [INFO] [VehicleHAL] AIDL RX: TX=13 bytes=8
+[23:47:32.378] [JS] [INFO] [VehicleHAL] AIDL RX: TX=14 bytes=8
+[23:47:32.380] [JS] [INFO] [VehicleHAL] AIDL RX: TX=15 bytes=8
+[23:47:32.386] [JS] [INFO] [VehicleHAL] AIDL RX: TX=16 bytes=8
+[23:47:32.392] [JS] [INFO] [VehicleHAL] AIDL RX: TX=17 bytes=8
+[23:47:32.395] [JS] [INFO] [VehicleHAL] AIDL RX: TX=18 bytes=16
+[23:47:32.398] [JS] [INFO] [VehicleHAL] AIDL RX: TX=19 bytes=8
+[23:47:32.401] [JS] [INFO] [VehicleHAL] AIDL RX: TX=20 bytes=20
+[23:47:32.405] [JS] [INFO] [VehicleHAL] AIDL RX: TX=21 bytes=20
+[23:47:32.411] [JS] [INFO] [VehicleHAL] AIDL RX: TX=22 bytes=20
+[23:47:32.414] [JS] [INFO] [VehicleHAL] AIDL RX: TX=23 bytes=8
+[23:47:32.417] [JS] [INFO] [VehicleHAL] AIDL RX: TX=24 bytes=8
+[23:47:32.420] [JS] [INFO] [VehicleHAL] AIDL RX: TX=25 bytes=8
+[23:47:32.431] DEEP BROADCAST MONITOR registered with 37 actions
+[23:47:32.435] [JS] [INFO] Splash Screen Hidden via Main
+[23:47:33.885] [JS] [INFO] [OBD2] Native CANbus fallback mode ACTIVATED
+[23:47:33.888] [JS] [INFO] [OBD2] Using AIDL data instead of ELM327
+[23:47:33.905] [JS] [INFO] [VehicleHAL] Native Sniffers Requested.
+[23:47:42.581] [JS] [WARN] [OBD2] Native CANbus fallback mode DEACTIVATED (AIDL inactive)
+[23:47:47.202] [JS] [INFO] [OBD2] Connecting via Bluetooth...
+[23:47:47.225] Initiating Bluetooth ELM327 Connection...
+[23:47:47.237] Bluetooth disabled
+[23:47:47.396] [JS] [ERROR] {"message":"Bluetooth is disabled"}
+[23:47:47.402] [JS] [ERROR] [OBD2] BT Connection failed {}
+[23:48:23.633] CANBUS_DUMP: [SETTING] SYSTEM | REVERSE_STATUS_FOR_PROTOCOL: 0 -> 1
+[23:48:25.526] CANBUS_DUMP: [SETTING] SYSTEM | REVERSE_STATUS_FOR_PROTOCOL: 1 -> 0

@@ -1,0 +1,79 @@
+=== SNIFFER SESSION Wed Jan 21 23:47:31 GMT+11:00 2026 ===
+Log file: /storage/usb1/twahh_sniffer_20260121_234731.txt
+[23:47:31.592] MEGA BROADCAST registered: 60 actions
+[23:47:31.600] BIND ATTEMPT to com.tw.carinfoservice/.CarService: SUCCESS
+[23:47:31.606] BIND ATTEMPT to com.tw.car/.CarService: SUCCESS
+[23:47:31.612] BIND ATTEMPT to com.dofun.carassistant.car/.service.CarService: SUCCESS
+[23:47:31.615] === SERIAL TTY SNIFFER ===
+[23:47:31.618] BOUND TO SERVICE: com.tw.carinfoservice/com.tw.carinfoservice.CarService
+[23:47:31.620] SUPER AGGRESSIVE SNIFFER STARTED - polling at 500ms
+[23:47:31.622] [DISCOVERY] Found native descriptor: com.tw.carinfoservice.CarServiceAidl
+[23:47:31.625] PROBING SERVICE: com.tw.carinfoservice/com.tw.carinfoservice.CarService
+[23:47:31.627] Trying 7 interface descriptors (Discovered: com.tw.carinfoservice.CarServiceAidl)...
+[23:47:31.628] [SERIAL] Available tty ports: ttyS1 ttyS1.tmp ttyS3 tty ttyS7 ttyS0 ttyS2 ttyS4 
+[23:47:31.630] [SERIAL] Trying port: /dev/ttyS0
+[23:47:31.668] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=1 SIZE=244
+  HEX: FC FF FF FF 73 00 00 00 41 00 74 00 74 00 65 00 6D 00 70 00 74 00 20 00 74 00 6F 00 20 00 69 00 6E 00 76 00 6F 00 6B 00 65 00 20 00 69 00 6E 00 74 00 65 00 72 00 66 00 61 00 63 00 65 00 20 00 
+[23:47:31.683] [SERIAL] Trying port: /dev/ttyS1
+[23:47:31.703] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=2 SIZE=244
+  HEX: FC FF FF FF 73 00 00 00 41 00 74 00 74 00 65 00 6D 00 70 00 74 00 20 00 74 00 6F 00 20 00 69 00 6E 00 76 00 6F 00 6B 00 65 00 20 00 69 00 6E 00 74 00 65 00 72 00 66 00 61 00 63 00 65 00 20 00 
+[23:47:31.711] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=3 SIZE=4
+  HEX: 00 00 00 00 
+[23:47:31.715] [SERIAL] Trying port: /dev/ttyS2
+[23:47:31.720] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=4 SIZE=8
+  HEX: 00 00 00 00 CD CC 44 41 
+[23:47:31.732] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=5 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.742] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=6 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.751] [SERIAL] Trying port: /dev/ttyS3
+[23:47:31.753] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=7 SIZE=20
+  HEX: 00 00 00 00 03 00 00 00 FF FF FF FF 00 00 00 00 00 00 00 00 
+[23:47:31.764] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=8 SIZE=20
+  HEX: 00 00 00 00 03 00 00 00 FF FF FF FF 00 00 00 00 00 00 00 00 
+[23:47:31.772] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=9 SIZE=8
+  HEX: 00 00 00 00 00 00 80 BF 
+[23:47:31.777] [SERIAL] Trying port: /dev/ttyS4
+[23:47:31.779] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=10 SIZE=8
+  HEX: 00 00 00 00 00 00 80 BF 
+[23:47:31.787] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=11 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.794] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=12 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.801] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=13 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.807] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=14 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.810] [DMESG] Failed: Cannot run program "su": error=13, Permission denied
+[23:47:31.815] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=15 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.816] === SERIAL SCAN COMPLETE ===
+[23:47:31.822] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=16 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.829] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=17 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.836] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=18 SIZE=16
+  HEX: 00 00 00 00 02 00 00 00 00 00 00 00 00 00 00 00 
+[23:47:31.843] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=19 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:31.851] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=20 SIZE=20
+  HEX: 00 00 00 00 03 00 00 00 00 00 80 BF 00 00 00 00 00 00 00 00 
+[23:47:31.859] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=21 SIZE=20
+  HEX: 00 00 00 00 03 00 00 00 00 00 80 BF 00 00 00 00 00 00 00 00 
+[23:47:31.866] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=22 SIZE=20
+  HEX: 00 00 00 00 03 00 00 00 00 00 80 BF 00 00 00 00 00 00 00 00 
+[23:47:31.872] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=23 SIZE=8
+  HEX: 00 00 00 00 00 00 80 BF 
+[23:47:31.878] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=24 SIZE=8
+  HEX: 00 00 00 00 00 00 80 BF 
+[23:47:31.884] [AIDL_DYNAMIC] IFACE=com.tw.carinfoservice.CarServiceAidl TX=25 SIZE=8
+  HEX: 00 00 00 00 FF FF FF FF 
+[23:47:32.196] BOUND TO SERVICE: com.dofun.carassistant.car/com.dofun.carassistant.car.service.CarService
+[23:47:32.208] PROBING SERVICE: com.dofun.carassistant.car/com.dofun.carassistant.car.service.CarService
+[23:47:32.210] Trying 8 interface descriptors (Discovered: )...
+[23:48:23.656] [SETTING] SYSTEM | REVERSE_STATUS_FOR_PROTOCOL: 0 -> 1
+[23:48:25.533] [SETTING] SYSTEM | REVERSE_STATUS_FOR_PROTOCOL: 1 -> 0
+[23:50:25.296] [SETTING] SYSTEM | REVERSE_STATUS_FOR_PROTOCOL: 0 -> 1
+[23:50:26.947] [SETTING] SYSTEM | REVERSE_STATUS_FOR_PROTOCOL: 1 -> 0
+[23:50:40.223] [SETTING] SYSTEM | REVERSE_STATUS_FOR_PROTOCOL: 0 -> 1
+[23:50:42.392] [SETTING] SYSTEM | REVERSE_STATUS_FOR_PROTOCOL: 1 -> 0
