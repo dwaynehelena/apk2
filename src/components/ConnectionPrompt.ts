@@ -16,6 +16,17 @@ export class ConnectionPrompt {
 
         // Listen for HAL changes to update the indicator
         this.hal.system.canbusActive.subscribe(() => this.updateIndicator());
+
+        // Initial "Scanning" state
+        setTimeout(() => {
+            const header = this.element.querySelector('.prompt-header h2');
+            const msg = this.element.querySelector('.prompt-msg');
+            if (header && msg && !this.hal.isConnected.value) {
+                header.textContent = 'VEHICLE OFFLINE';
+                msg.textContent = 'No active data stream detected from Allwinner AIDL or ELM327 interface.';
+                // (msg as HTMLElement).style.opacity = '1';
+            }
+        }, 5000);
     }
 
     private updateIndicator() {
@@ -32,10 +43,10 @@ export class ConnectionPrompt {
             <div class="connection-prompt-card glass-panel">
                 <div class="prompt-header">
                     <span class="pulse-icon">⚠️</span>
-                    <h2>VEHICLE OFFLINE</h2>
+                    <h2>SCANNING FOR VEHICLE...</h2>
                 </div>
                 
-                <p class="prompt-msg">No active data stream detected from Allwinner AIDL or ELM327 interface.</p>
+                <p class="prompt-msg">Attempting auto-connection to AIDL Service and ELM327 (WiFi)...</p>
                 
                 <div class="connection-options">
                     <div class="option-group">

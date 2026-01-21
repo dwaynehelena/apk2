@@ -64,6 +64,11 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
 
     private void checkAndLogPermission(String perm) {
         if (android.os.Build.VERSION.SDK_INT >= 23) {
+            // Skip Android 12+ permissions on older devices to avoid confusing logs
+            if (android.os.Build.VERSION.SDK_INT < 31 && 
+               (perm.contains("BLUETOOTH_CONNECT") || perm.contains("BLUETOOTH_SCAN"))) {
+                return;
+            }
             int status = getContext().checkSelfPermission(perm);
             addLog("PERM CHECK " + perm + ": " + (status == PackageManager.PERMISSION_GRANTED ? "GRANTED" : "DENIED"));
         }
@@ -250,7 +255,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
             getContext().registerReceiver(sniffer, filter);
         }
         
-        Log.d("TwahhPlugin", "Sniffer BroadcastReceiver registered with " + filter.countActions() + " actions");
+        addLog("Sniffer BroadcastReceiver registered with " + filter.countActions() + " actions");
         call.resolve();
     }
 
@@ -723,6 +728,14 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                                 sb.append(String.format("%02X", arr[i]));
                             }
                             if (arr.length > 16) sb.append("...");
+                            String state = "";
+                    switch(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1)) {
+                         case BluetoothAdapter.STATE_OFF: state="OFF"; break;
+                         case BluetoothAdapter.STATE_TURNING_ON: state="TURNING_ON"; break;
+                         case BluetoothAdapter.STATE_ON: state="ON"; break;
+                         case BluetoothAdapter.STATE_TURNING_OFF: state="TURNING_OFF"; break;
+                    }
+                    addLog("BT State: " + state);
                             sb.append("]");
                             data.put(key, sb.toString());
                         } else {
@@ -732,7 +745,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                     ret.put("extras", data);
                 }
                 
-                Log.d("TwahhPlugin", "DEEP BROADCAST: " + action);
+                addLog("DEEP BROADCAST: " + action);
                 notifyListeners("deepBroadcast", ret);
             }
         };
@@ -743,7 +756,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
             getContext().registerReceiver(deepReceiver, filter);
         }
         
-        Log.d("TwahhPlugin", "DEEP BROADCAST MONITOR registered with " + filter.countActions() + " actions");
+        addLog("DEEP BROADCAST MONITOR registered with " + filter.countActions() + " actions");
         
         JSObject ret = new JSObject();
         ret.put("actionsRegistered", filter.countActions());
@@ -791,7 +804,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                         snifferLogFile.write("\n\n=== NEW SESSION " + new java.util.Date() + " ===\n");
                         snifferLogFile.write("Log file: " + path + "\n");
                         snifferLogFile.flush();
-                        Log.d("TwahhPlugin", "SNIFFER LOG: " + path);
+                        addLog("SNIFFER LOG: " + path);
                         break;
                     }
                 } catch (Exception e) {
@@ -799,7 +812,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                 }
             }
         } catch (Exception e) {
-            Log.e("TwahhPlugin", "Cannot open log file: " + e.getMessage());
+            addLog("Cannot open log file: " + e.getMessage());
         }
         
         // Register for EVERY broadcast we can think of
@@ -892,7 +905,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                     logLine.append("}");
                 }
                 
-                Log.d("CANBUS_DUMP", logLine.toString());
+                addLog("CANBUS_DUMP: " + logLine.toString());
                 writeToSnifferLog(logLine.toString());
                 
                 JSObject ret = new JSObject();
@@ -909,7 +922,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
             getContext().registerReceiver(megaReceiver, megaFilter);
         }
         
-        Log.d("TwahhPlugin", "MEGA BROADCAST registered: " + megaFilter.countActions() + " actions");
+        addLog("MEGA BROADCAST registered: " + megaFilter.countActions() + " actions");
         writeToSnifferLog("MEGA BROADCAST registered: " + megaFilter.countActions() + " actions");
         
         // Start aggressive thread to poll ALL settings + content providers
@@ -946,7 +959,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                                     } else if (!lastValue.equals(value)) {
                                         String logLine = "[SETTING] " + uriStr.replace("content://settings/", "").toUpperCase() + 
                                                          " | " + name + ": " + lastValue + " -> " + value;
-                                        Log.d("CANBUS_DUMP", logLine);
+                                        addLog("CANBUS_DUMP: " + logLine);
                                         writeToSnifferLog(logLine);
                                         
                                         allSettingsCache.put(cacheKey, value);
@@ -975,7 +988,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                 } catch (InterruptedException e) {
                     break;
                 } catch (Exception e) {
-                    Log.e("TwahhPlugin", "Aggressive sniffer error: " + e.getMessage());
+                    addLog("Aggressive sniffer error: " + e.getMessage());
                 }
             }
         });
@@ -988,7 +1001,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
         // Based on research: Raise/HiWorld uses 38400 baud, header 0x2E
         startSerialSniffer();
         
-        Log.d("TwahhPlugin", "SUPER AGGRESSIVE SNIFFER STARTED");
+        addLog("SUPER AGGRESSIVE SNIFFER STARTED");
         writeToSnifferLog("SUPER AGGRESSIVE SNIFFER STARTED - polling at 500ms");
         
         JSObject ret = new JSObject();
@@ -1016,8 +1029,9 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                     @Override
                     public void onServiceConnected(ComponentName name, android.os.IBinder service) {
                         String msg = "BOUND TO SERVICE: " + name.flattenToString();
-                        Log.d("CANBUS_DUMP", msg);
+                        addLog("CANBUS_DUMP: " + msg);
                         writeToSnifferLog(msg);
+                        addLog(msg);
                         speakNow("Connected to " + name.getShortClassName());
                         
                         // 1. DYNAMIC DISCOVERY: Get interface descriptor directly from the binder
@@ -1108,7 +1122,7 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                     
                     @Override
                     public void onServiceDisconnected(ComponentName name) {
-                        Log.d("CANBUS_DUMP", "SERVICE DISCONNECTED: " + name.flattenToString());
+                        addLog("SERVICE DISCONNECTED: " + name.flattenToString());
                     }
                 };
                 
@@ -1293,13 +1307,13 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
             tts.setLanguage(Locale.US);
             tts.setSpeechRate(1.1f);
             ttsReady = true;
-            Log.d("TwahhPlugin", "TTS Engine Ready!");
+            addLog("TTS Engine Ready!");
             // Welcome announcement - delay for 2 seconds to ensure hardware ready
             new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                 speakNow("TW Dashboard initialized. Ready for vehicle diagnostics.");
             }, 2000);
         } else {
-            Log.e("TwahhPlugin", "TTS Init failed: " + status);
+            addLog("TTS Init failed: " + status);
         }
     }
     
@@ -1411,6 +1425,8 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
                 elmRawLog = new java.io.FileWriter(logPath, true);
                 elmRawLog.write("\n\n=== ELM327 RAW SNIFF " + new java.util.Date() + " ===\n");
                 elmRawLog.flush();
+
+                addLog("[ELM] Raw Sniffer Log opened: " + logPath);
 
                 OutputStream out = (elm327BtSocket != null) ? elm327BtSocket.getOutputStream() : null;
                 InputStream in = (elm327BtSocket != null) ? elm327BtSocket.getInputStream() : null;
@@ -1548,28 +1564,28 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
 
             } catch (java.net.SocketTimeoutException e) {
                 addLog("WiFi Connect TIMEOUT: Device at " + host + ":" + port + " not responding");
-                Log.e("TwahhPlugin", "WiFi ELM327 timeout: " + e.getMessage());
+                addLog("WiFi ELM327 timeout: " + e.getMessage());
                 speakNow("WiFi connection timed out");
                 elm327Connected = false;
                 elm327Mode = "";
                 getActivity().runOnUiThread(() -> call.reject("Connection timeout - check IP address and ensure ELM327 WiFi is enabled"));
             } catch (java.net.ConnectException e) {
                 addLog("WiFi Connect REFUSED: " + e.getMessage());
-                Log.e("TwahhPlugin", "WiFi ELM327 refused: " + e.getMessage());
+                addLog("WiFi ELM327 refused: " + e.getMessage());
                 speakNow("WiFi connection refused");
                 elm327Connected = false;
                 elm327Mode = "";
                 getActivity().runOnUiThread(() -> call.reject("Connection refused - wrong port or device not ready"));
             } catch (java.net.UnknownHostException e) {
                 addLog("WiFi Connect INVALID HOST: " + host);
-                Log.e("TwahhPlugin", "WiFi ELM327 unknown host: " + e.getMessage());
+                addLog("WiFi ELM327 unknown host: " + e.getMessage());
                 speakNow("Invalid IP address");
                 elm327Connected = false;
                 elm327Mode = "";
                 getActivity().runOnUiThread(() -> call.reject("Invalid IP address: " + host));
             } catch (Exception e) {
                 addLog("WiFi Connect Error: " + e.getClass().getSimpleName() + " - " + e.getMessage());
-                Log.e("TwahhPlugin", "WiFi ELM327 connect error: " + e.getMessage());
+                addLog("WiFi ELM327 connect error: " + e.getMessage());
                 speakNow("WiFi E L M 3 2 7 connection failed");
                 elm327Connected = false;
                 elm327Mode = "";

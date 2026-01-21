@@ -5,6 +5,8 @@ import { registerPlugin } from '@capacitor/core';
 interface TwahhPluginImpl {
     getPluginLogs(): Promise<{ logs: string[] }>;
     saveLogFile(options: { content: string }): Promise<{ paths: string[] }>;
+    startSuperAggressiveSniffer(): Promise<any>;
+    startDeepBroadcastMonitor(): Promise<any>;
 }
 
 const TwahhPlugin = registerPlugin<TwahhPluginImpl>('TwahhPlugin');
@@ -273,10 +275,24 @@ export class VehicleHAL {
             }
         }
 
-        // Check availability of direct bridge
         if (window.fytBridge) {
             console.log('[VehicleHAL] Native FYT Bridge found.');
         }
+
+        // 3. AUTO-START NATIVE SNIFFERS (Critical for A133)
+        // We call this immediately to ensure the native layer starts looking for AIDL/CANbus
+        setTimeout(async () => {
+            try {
+                console.log('[VehicleHAL] Starting Native Sniffers...');
+                // @ts-ignore
+                await TwahhPlugin.startSuperAggressiveSniffer();
+                // @ts-ignore
+                await TwahhPlugin.startDeepBroadcastMonitor();
+                console.log('[VehicleHAL] Native Sniffers Requested.');
+            } catch (e) {
+                console.warn('[VehicleHAL] Failed to start native sniffers:', e);
+            }
+        }, 1000); // 1s delay to ensure plugin ready
     }
 
 

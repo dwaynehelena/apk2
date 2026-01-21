@@ -17,6 +17,17 @@ export class OBD2Service {
         this.hal = hal;
         // Check if native AIDL is available and start using it as fallback
         this.initNativeFallback();
+        // Try to auto-connect to ELM327 WiFi (common case for dedicated dongles)
+        this.autoConnect();
+    }
+
+    private autoConnect() {
+        setTimeout(async () => {
+            if (!this.isConnected && !this.nativeFallbackMode) {
+                console.log('[OBD2] Auto-connecting to default WiFi ELM327...');
+                await this.connectWifi("192.168.0.10", 35000);
+            }
+        }, 3000); // 3s delay to allow Native AIDL to be discovered first
     }
 
     /**
