@@ -1,4 +1,14 @@
 import { VehicleHAL } from './VehicleHAL';
+import { registerPlugin } from '@capacitor/core';
+
+interface TwahhPluginImpl {
+    connectELM327(options: { mode: string, host?: string, port?: number, mac?: string }): Promise<{ connected: boolean }>;
+    sendOBD(options: { cmd: string }): Promise<any>;
+    addListener(eventName: string, listenerFunc: (data: any) => void): Promise<any> & { remove: () => void };
+}
+
+const TwahhPlugin = registerPlugin<TwahhPluginImpl>('TwahhPlugin');
+
 
 export class OBD2Service {
     private hal: VehicleHAL;
@@ -81,9 +91,7 @@ export class OBD2Service {
     async connectWifi(ip: string = "192.168.0.10", port: number = 35000): Promise<boolean> {
         console.log(`[OBD2] Connecting to ${ip}:${port}...`);
 
-        if ((window as any).Capacitor?.isNative) {
-            const { TwahhPlugin } = (window as any).Capacitor.Plugins;
-
+        try {
             // Setup Listeners
             TwahhPlugin.addListener('obdData', (res: any) => this.handleData(res.data));
             TwahhPlugin.addListener('obdStatus', (res: any) => {
@@ -92,17 +100,15 @@ export class OBD2Service {
                 if (!this.isConnected) clearInterval(this.pollInterval);
             });
 
-            try {
-                const res = await TwahhPlugin.connectELM327({ mode: 'wifi', host: ip, port: port });
-                if (res.connected) {
-                    this.isConnected = true;
-                    await this.initELM();
-                    this.startPolling();
-                    return true;
-                }
-            } catch (e) {
-                console.error('[OBD2] Connection failed', e);
+            const res = await TwahhPlugin.connectELM327({ mode: 'wifi', host: ip, port: port });
+            if (res.connected) {
+                this.isConnected = true;
+                await this.initELM();
+                this.startPolling();
+                return true;
             }
+        } catch (e) {
+            console.error('[OBD2] Connection failed', e);
         }
         return false;
     }
@@ -113,9 +119,7 @@ export class OBD2Service {
     async connectBluetooth(mac: string = ""): Promise<boolean> {
         console.log(`[OBD2] Connecting via Bluetooth...`);
 
-        if ((window as any).Capacitor?.isNative) {
-            const { TwahhPlugin } = (window as any).Capacitor.Plugins;
-
+        try {
             // Setup Listeners (idempotent if already added, but safe to re-add)
             TwahhPlugin.addListener('obdData', (res: any) => this.handleData(res.data));
             TwahhPlugin.addListener('obdStatus', (res: any) => {
@@ -124,24 +128,20 @@ export class OBD2Service {
                 if (!this.isConnected) clearInterval(this.pollInterval);
             });
 
-            try {
-                const res = await TwahhPlugin.connectELM327({ mode: 'bluetooth', mac: mac });
-                if (res.connected) {
-                    this.isConnected = true;
-                    await this.initELM();
-                    this.startPolling();
-                    return true;
-                }
-            } catch (e) {
-                console.error('[OBD2] BT Connection failed', e);
+            const res = await TwahhPlugin.connectELM327({ mode: 'bluetooth', mac: mac });
+            if (res.connected) {
+                this.isConnected = true;
+                await this.initELM();
+                this.startPolling();
+                return true;
             }
+        } catch (e) {
+            console.error('[OBD2] BT Connection failed', e);
         }
         return false;
     }
 
     private async send(cmd: string) {
-        if (!this.isConnected) return;
-        const { TwahhPlugin } = (window as any).Capacitor.Plugins;
         await TwahhPlugin.sendOBD({ cmd });
     }
 

@@ -2,7 +2,41 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import './style.css';
 
 // GLOBAL ERROR HANDLER FOR ON-DEVICE DEBUGGING - MUST BE FIRST
+import { registerPlugin } from '@capacitor/core';
+const TwahhPluginLog = registerPlugin<any>('TwahhPlugin');
+
+// GLOBAL LOG BRIDGE TO NATIVE
+const originalLog = console.log;
+const originalWarn = console.warn;
+const originalError = console.error;
+
+function bridgeLog(level: string, args: any[]) {
+    try {
+        const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+        // Fire and forget
+        TwahhPluginLog.log({ msg: `[${level}] ${msg}` }).catch(() => { });
+    } catch (e) { /* ignore */ }
+}
+
+console.log = function (...args) {
+    originalLog.apply(console, args);
+    bridgeLog('INFO', args);
+};
+
+console.warn = function (...args) {
+    originalWarn.apply(console, args);
+    bridgeLog('WARN', args);
+};
+
+console.error = function (...args) {
+    originalError.apply(console, args);
+    bridgeLog('ERROR', args);
+};
+
 window.onerror = function (msg, url, line, col, error) {
+    const txt = `[CRITICAL ERROR]\n${msg}\n\nLocation: ${url}:${line}:${col}\n\nStack: ${error?.stack || 'N/A'}`;
+    bridgeLog('FATAL', [txt]);
+
     // console.error("GLOBAL ERROR TRAPPED:", msg);
     const errorBox = document.createElement('div');
     errorBox.style.position = 'fixed';
@@ -20,7 +54,7 @@ window.onerror = function (msg, url, line, col, error) {
     errorBox.style.fontSize = '12px';
     errorBox.style.whiteSpace = 'pre-wrap';
     errorBox.style.borderBottom = '2px solid white';
-    errorBox.innerText = `[CRITICAL ERROR]\n${msg}\n\nLocation: ${url}:${line}:${col}\n\nStack: ${error?.stack || 'N/A'}`;
+    errorBox.innerText = txt;
 
     // Ensure it's on top of everything
     if (document.body) {

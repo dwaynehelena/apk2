@@ -1329,7 +1329,16 @@ public class TwahhPlugin extends Plugin implements TextToSpeech.OnInitListener {
     }
 
     @PluginMethod
-    public void speak(PluginCall call) {
+    public void log(PluginCall call) {
+        String msg = call.getString("msg");
+        if (msg != null) {
+            addLog("[JS] " + msg);
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void echo(PluginCall call) {
         String text = call.getString("text", "");
         if (text.isEmpty()) {
             call.reject("No text provided");
